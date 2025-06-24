@@ -2,12 +2,11 @@ package ru.practicum.controller;
 
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import ru.practicum.CreateHitDto;
 import ru.practicum.ResponseHitDto;
 import ru.practicum.ResponseStatsDto;
-import ru.practicum.StatsClient;
 import ru.practicum.service.StatisticService;
 
 import java.time.LocalDateTime;
@@ -18,12 +17,12 @@ import java.util.List;
 @Slf4j
 @AllArgsConstructor
 @RequestMapping("/")
-public class StatsController implements StatsClient {
+public class StatsController {
 
     private final StatisticService statisticService;
     final String JSON_FORMAT_PATTERN_TIME = "yyyy-MM-dd HH:mm:ss";
 
-    @Override
+    @GetMapping("/stats")
     public List<ResponseStatsDto> getStats(LocalDateTime start, LocalDateTime end, List<String> uris, Boolean unique) {
         log.info("Получен запрос на получение статистики по посещениям");
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern(JSON_FORMAT_PATTERN_TIME);
@@ -33,7 +32,8 @@ public class StatsController implements StatsClient {
         return statisticService.get(startFormatted, endFormatted, uris, unique);
     }
 
-    @Override
+    @PostMapping("/hit")
+    @ResponseStatus(HttpStatus.CREATED)
     public ResponseHitDto createHit(CreateHitDto createHitDto) {
         log.info("Сохранение информации об обращении к эндпоинту");
         return statisticService.create(createHitDto);
