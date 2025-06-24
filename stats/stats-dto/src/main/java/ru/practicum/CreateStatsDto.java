@@ -21,6 +21,7 @@ public class CreateStatsDto {
     @NotNull
     private String end;
 
+    @Builder.Default
     private List<String> uris = new ArrayList<>();
 
     private Boolean unique;

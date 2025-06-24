@@ -1,0 +1,22 @@
+server:
+  port: 0
+
+spring:
+  application:
+    name: stats-server
+  jpa:
+    show-sql: true
+    hibernate:
+      ddl-auto: update
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    properties:
+      hibernate:
+        format_sql: true
+  sql:
+    init:
+      mode: always
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    url: 'jdbc:postgresql://localhost:6541/stats'
+    username: userdb
+    password: 12345
