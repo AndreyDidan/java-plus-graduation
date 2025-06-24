@@ -3,6 +3,7 @@ spring:
     name: gateway-server
   cloud:
     gateway:
+      actuator.verbose.enabled: false
       discovery.locator.enabled: true
       routes:
         - id: main_service_route
@@ -11,3 +12,11 @@ spring:
             - Path=/users/**, /admin/**, /events/**, /categories/**, /compilations/**
 server:
   port: 8080
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  endpoint:
+    gateway:
+      enabled: true
