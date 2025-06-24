@@ -3,11 +3,9 @@ spring:
     name: gateway-server
   cloud:
     gateway:
-      discovery.locator.enabled: true
-      routes:
-        - id: main_service_route
-          uri: lb://main-service
-          predicates:
-            - Path=/users/**, /admin/**, /events/**, /categories/**, /compilations/**
+      discovery:
+        locator:
+          enabled: true
+          lower-case-service-id: true
 server:
   port: 8080
