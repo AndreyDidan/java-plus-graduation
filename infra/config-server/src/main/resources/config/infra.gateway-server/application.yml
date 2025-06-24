@@ -3,15 +3,22 @@ spring:
     name: gateway-server
   cloud:
     gateway:
-      actuator.verbose.enabled: false
-      discovery.locator.enabled: true
+      discovery:
+        locator:
+          enabled: true
+          lower-case-service-id: true
+      actuator:
+        verbose:
+          enabled: true
       routes:
         - id: main_service_route
           uri: lb://main-service
           predicates:
             - Path=/users/**, /admin/**, /events/**, /categories/**, /compilations/**
+
 server:
   port: 8080
+
 management:
   endpoints:
     web:
