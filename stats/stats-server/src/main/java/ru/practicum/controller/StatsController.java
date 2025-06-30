@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.*;
 import ru.practicum.CreateHitDto;
 import ru.practicum.ResponseHitDto;
 import ru.practicum.ResponseStatsDto;
+import ru.practicum.StatsClient;
 import ru.practicum.service.StatisticService;
 
 import java.util.List;
@@ -15,7 +16,7 @@ import java.util.List;
 @RestController
 @Slf4j
 @RequiredArgsConstructor
-public class StatsController {
+public class StatsController implements StatsClient {
 
     private final StatisticService statisticService;
 
