@@ -1,17 +1,14 @@
 package ru.practicum.event.service;
 
-import com.google.gson.JsonArray;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.http.*;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
-import org.springframework.web.util.UriComponentsBuilder;
+import ru.practicum.CreateHitDto;
+import ru.practicum.ResponseStatsDto;
+import ru.practicum.StatsClient;
 import ru.practicum.category.dto.CategoryDto;
 import ru.practicum.category.mapper.CategoryDtoMapper;
 import ru.practicum.category.model.Category;
@@ -46,10 +43,7 @@ import java.util.stream.Collectors;
 @Service("eventServiceImpl")
 @RequiredArgsConstructor
 public class EventServiceImpl implements EventService {
-    private static final String APP_NAME = "main_svc";
-    private static final String STATS_SERVICE_SCHEME = "http";
-    private static final String STATS_SERVICE_HOST = "ewm-stats-server";
-    private static final Integer STATS_SERVICE_PORT = 9090;
+    private static final String APP_NAME = "main-service";
     private final UserService userService;
     private final CategoryService categoryService;
     private final LocationService locationService;
@@ -58,7 +52,7 @@ public class EventServiceImpl implements EventService {
     private final UserDtoMapper userDtoMapper;
     private final CategoryDtoMapper categoryDtoMapper;
     private final LocationDtoMapper locationDtoMapper;
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final StatsClient statsClient;
 
     final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
@@ -264,80 +258,26 @@ public class EventServiceImpl implements EventService {
     }
 
     private void saveView(HttpServletRequest request) {
-        final String url = UriComponentsBuilder.newInstance()
-                .scheme(STATS_SERVICE_SCHEME)
-                .host(STATS_SERVICE_HOST)
-                .port(STATS_SERVICE_PORT)
-                .path("/hit")
-                .toUriString();
-
         final NewEventViewDto viewDto = new NewEventViewDto().builder()
                 .app(APP_NAME)
                 .uri(request.getRequestURI())
                 .ip(request.getRemoteAddr())
                 .timestamp(LocalDateTime.now().format(formatter))
                 .build();
-
-        final HttpMethod method = HttpMethod.POST;
-        final HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.setAccept(List.of(MediaType.APPLICATION_JSON));
-        final HttpEntity<Object> requestBody = new HttpEntity<>(viewDto, headers);
-
-        log.info("Отправка запроса в сервис статистики: {}", url);
-        log.info("Тело запроса: {}", requestBody);
-
-        try {
-            ResponseEntity<Object> response = restTemplate.exchange(url, method, requestBody, Object.class);
-
-            if (response.getStatusCode() == HttpStatus.CREATED) {
-                log.info("Просмотр успешно записанного события.");
-            } else {
-                log.error("Ошибка при сохранении просмотра. Код ответа: {}", response.getStatusCode());
-            }
-        } catch (Exception e) {
-            log.error("Exception: {}", e.getMessage(), e);
-        }
+        CreateHitDto createHitDto = CreateHitDto.builder()
+                .app(viewDto.getApp())
+                .uri(viewDto.getUri())
+                .ip(viewDto.getIp())
+                .timestamp(viewDto.getTimestamp())
+                .build();
+        log.info("Сохранем просмотр.");
+        statsClient.createHit(createHitDto);
     }
 
     private Long countViews(Long eventId, LocalDateTime start, LocalDateTime end) {
-        final List<String> uris = List.of(
-                "/events/" + eventId
-        );
-        final String url = UriComponentsBuilder.newInstance()
-                .scheme(STATS_SERVICE_SCHEME)
-                .host(STATS_SERVICE_HOST)
-                .port(STATS_SERVICE_PORT)
-                .path("/stats")
-                .queryParam("start", start.format(formatter))
-                .queryParam("end", end.format(formatter))
-                .queryParam("uris", uris)
-                .queryParam("unique", "true")
-                .toUriString();
-
-        final HttpMethod method = HttpMethod.GET;
-        final HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.setAccept(List.of(MediaType.APPLICATION_JSON));
-        final HttpEntity<Object> requestBody = new HttpEntity<>(null, headers);
-
-        log.info(url);
-
-        final ResponseEntity<String> response = restTemplate.exchange(url, method, requestBody, String.class);
-
-        log.info(response.getStatusCode().toString());
-
-        if (response.getStatusCode() != HttpStatus.OK) {
-            return 0L;
-        }
-
-        Long sumOfViews = 0L;
-        JsonArray jsonArray = (JsonArray) JsonParser.parseString(response.getBody());
-        for (int i = 0; i < jsonArray.size(); i++) {
-            JsonObject jsonObject = (JsonObject) jsonArray.get(i);
-            sumOfViews += jsonObject.get("hits").getAsLong();
-        }
-
-        return sumOfViews;
+        final List<String> uris = List.of("/events/" + eventId);
+        return statsClient.getStats(start.format(formatter), end.format(formatter), uris, true).stream()
+                .mapToLong(ResponseStatsDto::getHits)
+                .sum();
     }
 }

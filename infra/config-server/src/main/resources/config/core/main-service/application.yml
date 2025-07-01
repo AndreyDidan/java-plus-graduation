@@ -1,21 +1,11 @@
 server:
   port: 0
-  error:
-    error:
-      include-message: always
-      include-binding-errors: always
-      include-stacktrace: always
-      include-exception: true
-      debug: true
-
 spring:
   application:
     name: main-service
   jpa:
-    show-sql: true
     hibernate:
       ddl-auto: update
-    database-platform: org.hibernate.dialect.PostgreSQLDialect
     properties:
       hibernate:
         format_sql: true
@@ -23,7 +13,12 @@ spring:
     init:
       mode: always
   datasource:
+    url: jdbc:postgresql://localhost:6542/main_db
+    username: user
+    password: password
     driver-class-name: org.postgresql.Driver
-    url: 'jdbc:postgresql://localhost:6542/main_db'
-    username: userdb
-    password: 12345
+
+stats:
+  service:
+    enabled: true
+    name: stats-service

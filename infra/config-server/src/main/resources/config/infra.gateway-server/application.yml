@@ -1,3 +1,6 @@
+server:
+  port: 8080
+
 spring:
   application:
     name: gateway-server
@@ -6,24 +9,28 @@ spring:
       discovery:
         locator:
           enabled: true
-          lower-case-service-id: true
-      actuator:
-        verbose:
-          enabled: true
       routes:
-        - id: main_service_route
+        - id: public_category
           uri: lb://main-service
           predicates:
-            - Path=/users/**, /admin/**, /events/**, /categories/**, /compilations/**
+            - Path=/categories/**
 
-server:
-  port: 8080
+        - id: public_compilation
+          uri: lb://main-service
+          predicates:
+            - Path=/compilations/**
 
-management:
-  endpoints:
-    web:
-      exposure:
-        include: "*"
-  endpoint:
-    gateway:
-      enabled: true
+        - id: public_event
+          uri: lb://main-service
+          predicates:
+            - Path=/events/**
+
+        - id: public_user
+          uri: lb://main-service
+          predicates:
+            - Path=/users/**
+
+        - id: public_admin
+          uri: lb://main-service
+          predicates:
+            - Path=/admin/**

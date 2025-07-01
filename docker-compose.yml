@@ -1,5 +1,4 @@
 services:
-
   stats-db:
     image: postgres:16.1
     container_name: "stats-db"
@@ -9,8 +8,8 @@ services:
       - /var/lib/postgresql/stats
     environment:
       - POSTGRES_DB=stats
-      - POSTGRES_USER=userdb
-      - POSTGRES_PASSWORD=12345
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
 
   main-db:
     image: postgres:16.1
@@ -21,5 +20,5 @@ services:
       - /var/lib/postgresql/main-service
     environment:
       - POSTGRES_DB=main_db
-      - POSTGRES_USER=userdb
-      - POSTGRES_PASSWORD=12345
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
