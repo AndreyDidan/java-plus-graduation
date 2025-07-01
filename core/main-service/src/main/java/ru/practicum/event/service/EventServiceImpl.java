@@ -258,17 +258,11 @@ public class EventServiceImpl implements EventService {
     }
 
     private void saveView(HttpServletRequest request) {
-        final NewEventViewDto viewDto = new NewEventViewDto().builder()
+        CreateHitDto createHitDto = CreateHitDto.builder()
                 .app(APP_NAME)
                 .uri(request.getRequestURI())
                 .ip(request.getRemoteAddr())
                 .timestamp(LocalDateTime.now().format(formatter))
-                .build();
-        CreateHitDto createHitDto = CreateHitDto.builder()
-                .app(viewDto.getApp())
-                .uri(viewDto.getUri())
-                .ip(viewDto.getIp())
-                .timestamp(viewDto.getTimestamp())
                 .build();
         log.info("Сохранем просмотр.");
         statsClient.createHit(createHitDto);
