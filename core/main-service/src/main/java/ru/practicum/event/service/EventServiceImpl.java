@@ -3,6 +3,7 @@ package ru.practicum.event.service;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -43,7 +44,9 @@ import java.util.stream.Collectors;
 @Service("eventServiceImpl")
 @RequiredArgsConstructor
 public class EventServiceImpl implements EventService {
-    private static final String APP_NAME = "main-service";
+    //private static final String APP_NAME = "main-service";
+    @Value("${spring.application.name}") // Получаем имя приложения из конфигурации main-service
+    private String appName;
     private final UserService userService;
     private final CategoryService categoryService;
     private final LocationService locationService;
@@ -259,13 +262,19 @@ public class EventServiceImpl implements EventService {
 
     private void saveView(HttpServletRequest request) {
         CreateHitDto createHitDto = CreateHitDto.builder()
-                .app(APP_NAME)
+                .app(statsClient.APP_NAME)
                 .uri(request.getRequestURI())
                 .ip(request.getRemoteAddr())
                 .timestamp(LocalDateTime.now().format(formatter))
                 .build();
-        log.info("Сохранем просмотр.");
-        statsClient.createHit(createHitDto);
+        log.info("Сохраняем просмотр. Запрос URI: {}, IP: {}, Время: {}", request.getRequestURI(),
+                request.getRemoteAddr(), LocalDateTime.now().format(formatter));
+        try {
+            statsClient.createHit(createHitDto);
+        } catch (Exception e) {
+            log.error("Ошибка при сохранении просмотра для URI: {}. Сообщение об ошибке: {}", request.getRequestURI(),
+                    e.getMessage(), e);
+        }
     }
 
     private Long countViews(Long eventId, LocalDateTime start, LocalDateTime end) {
