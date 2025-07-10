@@ -3,13 +3,12 @@ package ru.practicum.event.service;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import ru.practicum.CreateHitDto;
 import ru.practicum.ResponseStatsDto;
-import ru.practicum.StatsClient;
+import ru.practicum.StatsClientWrapper;
 import ru.practicum.category.dto.CategoryDto;
 import ru.practicum.category.mapper.CategoryDtoMapper;
 import ru.practicum.category.model.Category;
@@ -44,9 +43,6 @@ import java.util.stream.Collectors;
 @Service("eventServiceImpl")
 @RequiredArgsConstructor
 public class EventServiceImpl implements EventService {
-    //private static final String APP_NAME = "main-service";
-    @Value("${spring.application.name}") // Получаем имя приложения из конфигурации main-service
-    private String appName;
     private final UserService userService;
     private final CategoryService categoryService;
     private final LocationService locationService;
@@ -55,7 +51,7 @@ public class EventServiceImpl implements EventService {
     private final UserDtoMapper userDtoMapper;
     private final CategoryDtoMapper categoryDtoMapper;
     private final LocationDtoMapper locationDtoMapper;
-    private final StatsClient statsClient;
+    private final StatsClientWrapper statsClientWrapper;
 
     final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
@@ -262,7 +258,6 @@ public class EventServiceImpl implements EventService {
 
     private void saveView(HttpServletRequest request) {
         CreateHitDto createHitDto = CreateHitDto.builder()
-                .app(statsClient.APP_NAME)
                 .uri(request.getRequestURI())
                 .ip(request.getRemoteAddr())
                 .timestamp(LocalDateTime.now().format(formatter))
@@ -270,7 +265,7 @@ public class EventServiceImpl implements EventService {
         log.info("Сохраняем просмотр. Запрос URI: {}, IP: {}, Время: {}", request.getRequestURI(),
                 request.getRemoteAddr(), LocalDateTime.now().format(formatter));
         try {
-            statsClient.createHit(createHitDto);
+            statsClientWrapper.createHit(createHitDto);
         } catch (Exception e) {
             log.error("Ошибка при сохранении просмотра для URI: {}. Сообщение об ошибке: {}", request.getRequestURI(),
                     e.getMessage(), e);
@@ -279,7 +274,7 @@ public class EventServiceImpl implements EventService {
 
     private Long countViews(Long eventId, LocalDateTime start, LocalDateTime end) {
         final List<String> uris = List.of("/events/" + eventId);
-        return statsClient.getStats(start.format(formatter), end.format(formatter), uris, true).stream()
+        return statsClientWrapper.getStats(start.format(formatter), end.format(formatter), uris, true).stream()
                 .mapToLong(ResponseStatsDto::getHits)
                 .sum();
     }
