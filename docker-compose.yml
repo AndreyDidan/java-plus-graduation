@@ -11,6 +11,18 @@ services:
       - POSTGRES_USER=user
       - POSTGRES_PASSWORD=password
 
+  users-db:
+    image: postgres:16.1
+    container_name: "users-db"
+    ports:
+      - "6543:5432"
+    volumes:
+      - /var/lib/postgresql/user-service
+    environment:
+      - POSTGRES_DB=user_db
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+
   main-db:
     image: postgres:16.1
     container_name: "main-db"

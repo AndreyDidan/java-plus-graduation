@@ -1,14 +1,14 @@
-package ru.practicum.user.service;
+package ru.practicum.service;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import ru.practicum.exception.NotFoundException;
-import ru.practicum.user.dto.NewUserRequest;
-import ru.practicum.user.dto.UserDto;
-import ru.practicum.user.mapper.UserDtoMapper;
-import ru.practicum.user.model.User;
-import ru.practicum.user.repository.UserRepository;
+import ru.practicum.mapper.UserDtoMapper;
+import ru.practicum.model.NewUserRequest;
+import ru.practicum.model.User;
+import ru.practicum.model.UserDto;
+import ru.practicum.repository.UserRepository;
 
 import java.util.ArrayList;
 import java.util.Collection;

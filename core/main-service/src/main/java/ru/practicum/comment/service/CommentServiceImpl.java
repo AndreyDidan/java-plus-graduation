@@ -17,10 +17,8 @@ import ru.practicum.event.model.State;
 import ru.practicum.event.service.EventService;
 import ru.practicum.exception.IncorrectRequestException;
 import ru.practicum.exception.NotFoundException;
-import ru.practicum.user.dto.UserDto;
-import ru.practicum.user.mapper.UserDtoMapper;
-import ru.practicum.user.model.User;
-import ru.practicum.user.service.UserService;
+import ru.practicum.feign.client.UserClient;
+import ru.practicum.model.UserDto;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -30,21 +28,20 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class CommentServiceImpl implements CommentService {
     private final EventService eventService;
-    private final UserService userService;
+    private final UserClient userClient;
     private final CommentRepository commentRepository;
     private final CommentDtoMapper commentDtoMapper;
-    private final UserDtoMapper userDtoMapper;
     private final EventDtoMapper eventDtoMapper;
 
     @Override
     public CommentDto create(Long userId, NewCommentDto commentDto) {
-        final UserDto userDto = userService.findById(userId);
-        final User user = userDtoMapper.mapFromDto(userDto);
+        final ru.practicum.model.UserDto userDto = userClient.findById(userId);
+        //final User user = userDtoMapper.mapFromDto(userDto);
         final EventFullDto eventDto = eventService.findById(userId, commentDto.getEvent(), false, null);
         final Event event = eventDtoMapper.mapFromDto(eventDto);
 
         final Comment comment = commentDtoMapper.mapFromDto(commentDto);
-        comment.setAuthor(user);
+        comment.setAuthorId(userId);
         comment.setEvent(event);
         if (commentDto.getReplyOn() != null) {
             final Comment replyOnComment = findById(commentDto.getReplyOn());
@@ -58,7 +55,7 @@ public class CommentServiceImpl implements CommentService {
 
     @Override
     public CommentDto update(Long userId, Long commentId, UpdateCommentDto commentDto) {
-        final UserDto userDto = userService.findById(userId);
+        final ru.practicum.model.UserDto userDto = userClient.findById(userId);
         final Comment comment = findById(commentId);
         commentDtoMapper.updateFromDto(comment, commentDto);
 
@@ -68,7 +65,7 @@ public class CommentServiceImpl implements CommentService {
 
     @Override
     public Collection<CommentDto> findAllByPrivate(Long userId, Integer from, Integer size) {
-        final UserDto userDto = userService.findById(userId);
+        final UserDto userDto = userClient.findById(userId);
         final Collection<Comment> comments = commentRepository.findAllByAuthorIdOrderByCreatedOn(userDto.getId(), (Pageable) PageRequest.of(from, size));
         return comments.stream()
                 .map(commentDtoMapper::mapToDto)
@@ -89,8 +86,8 @@ public class CommentServiceImpl implements CommentService {
     public void delete(Long userId, Long commentId) {
         final Comment comment = findById(commentId);
         if (userId != null) {
-            final UserDto userDto = userService.findById(userId);
-            if (!userDto.getId().equals(comment.getAuthor().getId())) {
+            final ru.practicum.model.UserDto userDto = userClient.findById(userId);
+            if (!userDto.getId().equals(comment.getAuthorId())) {
                 throw new IncorrectRequestException("Trying to delete comment not from author");
             }
         }

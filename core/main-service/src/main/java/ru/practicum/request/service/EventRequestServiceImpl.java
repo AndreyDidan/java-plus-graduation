@@ -8,6 +8,8 @@ import ru.practicum.event.service.EventService;
 import ru.practicum.exception.ConflictException;
 import ru.practicum.exception.ForbiddenException;
 import ru.practicum.exception.NotFoundException;
+import ru.practicum.feign.client.UserClient;
+import ru.practicum.model.UserDto;
 import ru.practicum.request.dto.EventRequestStatusUpdateRequest;
 import ru.practicum.request.dto.EventRequestStatusUpdateResult;
 import ru.practicum.request.dto.ParticipationRequestDto;
@@ -15,8 +17,6 @@ import ru.practicum.request.mapper.EventRequestDtoMapper;
 import ru.practicum.request.model.EventRequest;
 import ru.practicum.request.model.EventRequestStatus;
 import ru.practicum.request.storage.EventRequestRepository;
-import ru.practicum.user.dto.UserDto;
-import ru.practicum.user.service.UserService;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -26,21 +26,21 @@ import java.util.stream.Collectors;
 @Service("eventRequestServiceImpl")
 @RequiredArgsConstructor
 public class EventRequestServiceImpl implements EventRequestService {
-    private final UserService userService;
+    private final UserClient userClient;
     private final EventService eventService;
     private final EventRequestRepository eventRequestRepository;
     private final EventRequestDtoMapper eventRequestDtoMapper;
 
     @Override
     public ParticipationRequestDto create(Long userId, Long eventId) {
-        final UserDto user = userService.findById(userId);
+        final ru.practicum.model.UserDto user = userClient.findById(userId);
         final EventFullDto event = eventService.findById(userId, eventId, false, null);
         final EventRequest foundOldRequest = eventRequestRepository.findByEventIdAndRequesterId(eventId, userId);
         if (foundOldRequest != null) {
             throw new ConflictException("Trying to create already exist request");
         }
 
-        if (event.getInitiator().getId().equals(user.getId())) {
+        if (event.getInitiator().equals(user.getId())) {
             throw new ConflictException("Initiator of event can't be the same with requester");
         }
         validateEventForRequest(event);
@@ -65,10 +65,10 @@ public class EventRequestServiceImpl implements EventRequestService {
 
     @Override
     public EventRequestStatusUpdateResult updateStatus(Long userId, Long eventId, EventRequestStatusUpdateRequest requestsToUpdate) {
-        final UserDto user = userService.findById(userId);
+        final UserDto user = userClient.findById(userId);
         final EventFullDto event = eventService.findById(userId, eventId, false, null);
 
-        if (!event.getInitiator().getId().equals(user.getId())) {
+        if (!event.getInitiator().equals(user.getId())) {
             throw new ConflictException("Not initiator of event can't be change status of requests");
         }
         validateEventForRequest(event);
@@ -101,7 +101,7 @@ public class EventRequestServiceImpl implements EventRequestService {
 
     @Override
     public Collection<ParticipationRequestDto> getByRequesterId(Long requesterId) {
-        if (userService.findById(requesterId) == null) {
+        if (userClient.findById(requesterId) == null) {
             throw new NotFoundException("User with id=" + requesterId + " was not found");
         }
         final Collection<EventRequest> requests = eventRequestRepository.findByRequesterId(requesterId);
@@ -112,7 +112,7 @@ public class EventRequestServiceImpl implements EventRequestService {
 
     @Override
     public Collection<ParticipationRequestDto> getByEventId(Long eventInitiatorId, Long eventId) {
-        if (userService.findById(eventInitiatorId) == null) {
+        if (userClient.findById(eventInitiatorId) == null) {
             throw new NotFoundException("User with id=" + eventInitiatorId + " was not found");
         }
         if (eventService.findById(eventInitiatorId, eventId, false, null) == null) {

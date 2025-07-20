@@ -30,6 +30,12 @@ spring:
           predicates:
             - Path=/users/**
 
+        - id: user_service_route
+          uri: lb://user-service
+          predicates:
+            - Path=/admin/users/**
+
+
         - id: public_admin
           uri: lb://main-service
           predicates:

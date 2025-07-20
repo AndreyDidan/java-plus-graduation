@@ -17,7 +17,7 @@ public class CommentDto {
 
     private Long eventId;
 
-    private UserShortDto author;
+    private Long author;
 
     private Long replyOn;
 

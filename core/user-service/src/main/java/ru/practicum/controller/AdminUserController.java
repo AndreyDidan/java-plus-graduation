@@ -1,4 +1,4 @@
-package ru.practicum.user.controller;
+package ru.practicum.controller;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Positive;
@@ -7,9 +7,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
-import ru.practicum.user.dto.NewUserRequest;
-import ru.practicum.user.dto.UserDto;
-import ru.practicum.user.service.UserService;
+import ru.practicum.model.NewUserRequest;
+import ru.practicum.model.UserDto;
+import ru.practicum.service.UserService;
 
 import java.util.Collection;
 import java.util.List;
@@ -20,6 +20,11 @@ import java.util.List;
 @RequestMapping("/admin/users")
 public class AdminUserController {
     private final UserService userService;
+
+    @GetMapping("/{userId}")
+    public UserDto getById(@PathVariable Long userId) {
+        return userService.findById(userId);
+    }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)

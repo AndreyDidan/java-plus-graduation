@@ -7,7 +7,6 @@ import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import ru.practicum.category.model.Category;
 import ru.practicum.location.model.Location;
-import ru.practicum.user.model.User;
 
 import java.time.LocalDateTime;
 
@@ -23,9 +22,8 @@ public class Event {
     @Column(name = "id")
     private Long id;
 
-    @ManyToOne
-    @JoinColumn(name = "initiator_id")
-    private User initiator;
+    @Column(name = "initiator_id")
+    private Long initiatorId;
 
     @Column(name = "title", length = 120)
     private String title;

@@ -28,7 +28,7 @@ public class EventFullDto {
 
     private Long id;
 
-    private UserShortDto initiator;
+    private Long initiator;
 
     private LocationDto location;
 

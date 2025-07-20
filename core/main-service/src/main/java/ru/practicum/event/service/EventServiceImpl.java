@@ -23,14 +23,12 @@ import ru.practicum.exception.ConflictException;
 import ru.practicum.exception.ForbiddenException;
 import ru.practicum.exception.IncorrectRequestException;
 import ru.practicum.exception.NotFoundException;
+import ru.practicum.feign.client.UserClient;
 import ru.practicum.location.dto.LocationDto;
 import ru.practicum.location.mapper.LocationDtoMapper;
 import ru.practicum.location.model.Location;
 import ru.practicum.location.service.LocationService;
-import ru.practicum.user.dto.UserDto;
-import ru.practicum.user.mapper.UserDtoMapper;
-import ru.practicum.user.model.User;
-import ru.practicum.user.service.UserService;
+import ru.practicum.model.UserDto;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -43,12 +41,12 @@ import java.util.stream.Collectors;
 @Service("eventServiceImpl")
 @RequiredArgsConstructor
 public class EventServiceImpl implements EventService {
-    private final UserService userService;
+    private final UserClient userClient;
     private final CategoryService categoryService;
     private final LocationService locationService;
     private final EventRepository eventRepository;
     private final EventDtoMapper eventDtoMapper;
-    private final UserDtoMapper userDtoMapper;
+    //private final UserDtoMapper userDtoMapper;
     private final CategoryDtoMapper categoryDtoMapper;
     private final LocationDtoMapper locationDtoMapper;
     private final StatsClientWrapper statsClientWrapper;
@@ -57,11 +55,10 @@ public class EventServiceImpl implements EventService {
 
     @Override
     public EventFullDto create(Long userId, NewEventDto eventDto) {
-        final User user = findUserById(userId);
-
         validateEventDate(eventDto.getEventDate());
+        CategoryDto category = categoryService.findById(eventDto.getCategory());
         final Event event = eventDtoMapper.mapFromDto(eventDto);
-        event.setInitiator(user);
+        event.setInitiatorId(userId);
         final Event createdEvent = eventRepository.save(event);
 
         return eventDtoMapper.mapToFullDto(createdEvent);
@@ -89,8 +86,7 @@ public class EventServiceImpl implements EventService {
 
     @Override
     public Collection<EventShortDto> findAllByPrivate(Long userId, Integer from, Integer size) {
-        final User user = findUserById(userId);
-        final Collection<Event> events = eventRepository.findAllByInitiatorId(user.getId(), PageRequest.of(from, size));
+        final Collection<Event> events = eventRepository.findAllByInitiatorId(userId, PageRequest.of(from, size));
         return events.stream()
                 .map(event -> {
                     final EventShortDto eventDto = eventDtoMapper.mapToShortDto(event);
@@ -131,10 +127,9 @@ public class EventServiceImpl implements EventService {
 
     @Override
     public EventFullDto updateByPrivate(Long userId, Long eventId, UpdateEventUserRequest eventDto) {
-        final User user = findUserById(userId);
         final Event event = findEventById(eventId);
 
-        validateUser(event.getInitiator(), user);
+        validateUser(event.getInitiatorId(), userId);
         validateEventDate(eventDto.getEventDate());
         validateStatusForPrivate(event.getState(), eventDto.getStateAction());
 
@@ -177,8 +172,8 @@ public class EventServiceImpl implements EventService {
         eventRepository.save(event);
     }
 
-    private void validateUser(User user, User initiator) {
-        if (!initiator.getId().equals(user.getId())) {
+    private void validateUser(Long userId, Long initiatorId) {
+        if (!initiatorId.equals(userId)) {
             throw new NotFoundException("Trying to change information not from initiator of event");
         }
     }
@@ -224,10 +219,9 @@ public class EventServiceImpl implements EventService {
         }
     }
 
-    private User findUserById(Long userId) {
-        final UserDto userDto = userService.findById(userId);
-        final User user = userDtoMapper.mapFromDto(userDto);
-        return user;
+    private UserDto findUserById(Long userId) {
+        final UserDto userDto = userClient.findById(userId);
+        return userDto;
     }
 
     private Category findCategoryById(Long categoryId) {

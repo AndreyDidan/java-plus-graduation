@@ -23,7 +23,7 @@ public class EventShortDto {
 
     private Long id;
 
-    private UserShortDto initiator;
+    private Long initiator;
 
     private Boolean paid;
 

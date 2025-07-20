@@ -14,7 +14,7 @@ public interface EventRepository extends JpaRepository<Event, Long> {
     @Query("""
             SELECT e
             FROM Event AS e
-            WHERE (?1 IS NULL or e.initiator.id IN ?1)
+            WHERE (?1 IS NULL or e.initiatorId IN ?1)
                 AND (?2 IS NULL or e.state IN ?2)
                 AND (?3 IS NULL or e.category.id in ?3)
                 AND (CAST(?4 AS timestamp) IS NULL or e.eventDate >= ?4)
