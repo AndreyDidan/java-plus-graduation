@@ -11,17 +11,22 @@ spring:
           enabled: true
       routes:
         - id: public_category
-          uri: lb://main-service
+          uri: lb://event-service
           predicates:
             - Path=/categories/**
 
         - id: public_compilation
-          uri: lb://main-service
+          uri: lb://event-service
           predicates:
             - Path=/compilations/**
 
+        - id: comment_service_route
+          uri: lb://comment-service
+          predicates:
+            - Path=/admin/comments/*, /users/*/comments, /users/*/comments/*, /events/*/comments
+
         - id: public_event
-          uri: lb://main-service
+          uri: lb://event-service
           predicates:
             - Path=/events/**
 
@@ -31,7 +36,7 @@ spring:
             - Path=/users/*/requests, /users/*/requests/*, /users/*/requests/*/cancel, /users/*/events/*/requests
 
         - id: public_user
-          uri: lb://main-service
+          uri: lb://event-service
           predicates:
             - Path=/users/**
 
@@ -42,6 +47,6 @@ spring:
 
 
         - id: public_admin
-          uri: lb://main-service
+          uri: lb://event-service
           predicates:
             - Path=/admin/**

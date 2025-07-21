@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import ru.practicum.model.EventFullDto;
 
-@FeignClient(name = "main-service", path = "/admin/events")
+@FeignClient(name = "event-service", path = "/admin/events")
 public interface EventClient {
     @GetMapping("/{eventId}")
     EventFullDto findById(@PathVariable Long eventId) throws FeignException;

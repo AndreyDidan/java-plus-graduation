@@ -23,15 +23,15 @@ services:
       - POSTGRES_USER=user
       - POSTGRES_PASSWORD=password
 
-  main-db:
+  event-db:
     image: postgres:16.1
-    container_name: "main-db"
+    container_name: "event-db"
     ports:
       - "6542:5432"
     volumes:
-      - /var/lib/postgresql/main-service
+      - /var/lib/postgresql/event-service
     environment:
-      - POSTGRES_DB=main_db
+      - POSTGRES_DB=event_db
       - POSTGRES_USER=user
       - POSTGRES_PASSWORD=password
 
@@ -44,5 +44,17 @@ services:
       - /var/lib/postgresql/request-service
     environment:
       - POSTGRES_DB=request_db
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+
+  comment-db:
+    image: postgres:16.1
+    container_name: "comment-db"
+    ports:
+      - "6545:5432"
+    volumes:
+      - /var/lib/postgresql/comment-service
+    environment:
+      - POSTGRES_DB=comment_db
       - POSTGRES_USER=user
       - POSTGRES_PASSWORD=password
