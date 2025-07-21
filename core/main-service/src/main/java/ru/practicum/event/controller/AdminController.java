@@ -1,6 +1,7 @@
 package ru.practicum.event.controller;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
@@ -41,5 +42,20 @@ public class AdminController {
         final EventFullDto event = eventService.updateByAdmin(eventId, eventDto);
         log.info("Отправлен ответ PATCH /admin/events/{} с телом: {}", eventId, event);
         return event;
+    }
+
+    @GetMapping("/{eventId}")
+    public EventFullDto findById(@PathVariable Long eventId) {
+        log.info("Пришел GET запрос /admin/events/{}", eventId);
+        final EventFullDto event = eventService.getEventById(eventId);
+        log.info("Отправлен ответ GET /admin/events/eventId с телом: {}", event);
+        return event;
+
+    }
+
+    @PutMapping("/request/{eventId}")
+    public void updateConfirmedRequests(@PathVariable("eventId") Long eventId, @RequestBody Long confirmedRequests) {
+        log.info("Пришел PUT запрос /admin/events/request/{} с телом {}", eventId, confirmedRequests);
+        eventService.updateEventConfirmedRequests(eventId, confirmedRequests);
     }
 }

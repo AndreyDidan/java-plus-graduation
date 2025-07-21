@@ -167,9 +167,17 @@ public class EventServiceImpl implements EventService {
 
     @Override
     public void updateEventConfirmedRequests(Long eventId, Long confirmedRequests) {
-        final Event event = findEventById(eventId);
+        final Event event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new NotFoundException("События с id = " + eventId + " нет в базе данных"));
         event.setConfirmedRequests(confirmedRequests);
         eventRepository.save(event);
+    }
+
+    @Override
+    public EventFullDto getEventById(Long eventId) {
+        Event event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new NotFoundException("События с id = " + eventId + " нет в базе данных"));
+        return eventDtoMapper.mapToFullDto(event);
     }
 
     private void validateUser(Long userId, Long initiatorId) {

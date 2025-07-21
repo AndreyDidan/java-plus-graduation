@@ -34,3 +34,15 @@ services:
       - POSTGRES_DB=main_db
       - POSTGRES_USER=user
       - POSTGRES_PASSWORD=password
+
+  request-db:
+    image: postgres:16.1
+    container_name: "request-db"
+    ports:
+      - "6544:5432"
+    volumes:
+      - /var/lib/postgresql/request-service
+    environment:
+      - POSTGRES_DB=request_db
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password

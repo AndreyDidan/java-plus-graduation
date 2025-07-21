@@ -1,4 +1,4 @@
-package ru.practicum.request.model;
+package ru.practicum.request.dto;
 
 public enum EventRequestStatus {
     PENDING,

@@ -1,22 +1,15 @@
-package ru.practicum.request.service;
+package ru.practicum.service;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import ru.practicum.event.dto.EventFullDto;
-import ru.practicum.event.model.State;
-import ru.practicum.event.service.EventService;
 import ru.practicum.exception.ConflictException;
 import ru.practicum.exception.ForbiddenException;
 import ru.practicum.exception.NotFoundException;
+import ru.practicum.feign.client.EventClient;
 import ru.practicum.feign.client.UserClient;
-import ru.practicum.model.UserDto;
-import ru.practicum.request.dto.EventRequestStatusUpdateRequest;
-import ru.practicum.request.dto.EventRequestStatusUpdateResult;
-import ru.practicum.request.dto.ParticipationRequestDto;
-import ru.practicum.request.mapper.EventRequestDtoMapper;
-import ru.practicum.request.model.EventRequest;
-import ru.practicum.request.model.EventRequestStatus;
-import ru.practicum.request.storage.EventRequestRepository;
+import ru.practicum.mapper.EventRequestDtoMapper;
+import ru.practicum.model.*;
+import ru.practicum.storage.EventRequestRepository;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -27,14 +20,14 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class EventRequestServiceImpl implements EventRequestService {
     private final UserClient userClient;
-    private final EventService eventService;
+    private final EventClient eventClient;
     private final EventRequestRepository eventRequestRepository;
     private final EventRequestDtoMapper eventRequestDtoMapper;
 
     @Override
     public ParticipationRequestDto create(Long userId, Long eventId) {
-        final ru.practicum.model.UserDto user = userClient.findById(userId);
-        final EventFullDto event = eventService.findById(userId, eventId, false, null);
+        final UserDto user = userClient.findById(userId);
+        final EventFullDto event = eventClient.findById(eventId);
         final EventRequest foundOldRequest = eventRequestRepository.findByEventIdAndRequesterId(eventId, userId);
         if (foundOldRequest != null) {
             throw new ConflictException("Trying to create already exist request");
@@ -57,7 +50,7 @@ public class EventRequestServiceImpl implements EventRequestService {
         );
         final EventRequest createdRequest = eventRequestRepository.save(request);
         if (status.equals(EventRequestStatus.CONFIRMED)) {
-            eventService.updateEventConfirmedRequests(event.getId(), event.getConfirmedRequests() + 1);
+            eventClient.updateConfirmedRequests(event.getId(), event.getConfirmedRequests() + 1);
         }
 
         return eventRequestDtoMapper.mapToResponseDto(createdRequest);
@@ -66,7 +59,7 @@ public class EventRequestServiceImpl implements EventRequestService {
     @Override
     public EventRequestStatusUpdateResult updateStatus(Long userId, Long eventId, EventRequestStatusUpdateRequest requestsToUpdate) {
         final UserDto user = userClient.findById(userId);
-        final EventFullDto event = eventService.findById(userId, eventId, false, null);
+        final EventFullDto event = eventClient.findById(eventId);
 
         if (!event.getInitiator().equals(user.getId())) {
             throw new ConflictException("Not initiator of event can't be change status of requests");
@@ -115,7 +108,7 @@ public class EventRequestServiceImpl implements EventRequestService {
         if (userClient.findById(eventInitiatorId) == null) {
             throw new NotFoundException("User with id=" + eventInitiatorId + " was not found");
         }
-        if (eventService.findById(eventInitiatorId, eventId, false, null) == null) {
+        if (eventClient.findById(eventId) == null) {
             throw new NotFoundException("Event with id=" + eventId + " was not found on user with id=" + eventInitiatorId);
         }
         final Collection<EventRequest> requests = eventRequestRepository.findByEventId(eventId);
@@ -169,6 +162,6 @@ public class EventRequestServiceImpl implements EventRequestService {
             }
         }
 
-        eventService.updateEventConfirmedRequests(event.getId(), currentConfirmed);
+        eventClient.updateConfirmedRequests(event.getId(), currentConfirmed);
     }
 }

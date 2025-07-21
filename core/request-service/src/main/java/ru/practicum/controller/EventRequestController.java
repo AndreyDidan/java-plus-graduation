@@ -1,13 +1,14 @@
-package ru.practicum.request.controller;
+package ru.practicum.controller;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
-import ru.practicum.request.dto.EventRequestStatusUpdateRequest;
-import ru.practicum.request.dto.EventRequestStatusUpdateResult;
-import ru.practicum.request.dto.ParticipationRequestDto;
-import ru.practicum.request.service.EventRequestService;
+import ru.practicum.model.EventRequestStatusUpdateRequest;
+import ru.practicum.model.EventRequestStatusUpdateResult;
+import ru.practicum.model.ParticipationRequestDto;
+import ru.practicum.service.EventRequestService;
+
 
 import java.util.Collection;
 
