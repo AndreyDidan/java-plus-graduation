@@ -26,7 +26,7 @@ public class CommentServiceImpl implements CommentService {
 
     @Override
     public CommentDto create(Long userId, NewCommentDto commentDto) {
-        final ru.practicum.model.UserDto userDto = userClient.findById(userId);
+        final UserDto userDto = userClient.findById(userId);
         final EventFullDto eventDto = eventClient.findById(commentDto.getEvent());
 
         final Comment comment = commentDtoMapper.mapFromDto(commentDto);

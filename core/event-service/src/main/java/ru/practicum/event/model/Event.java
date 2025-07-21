@@ -7,6 +7,7 @@ import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import ru.practicum.category.model.Category;
 import ru.practicum.location.model.Location;
+import ru.practicum.model.State;
 
 import java.time.LocalDateTime;
 

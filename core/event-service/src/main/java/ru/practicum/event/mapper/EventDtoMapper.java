@@ -2,9 +2,9 @@ package ru.practicum.event.mapper;
 
 import org.mapstruct.*;
 import ru.practicum.category.mapper.CategoryDtoMapper;
-import ru.practicum.event.dto.*;
 import ru.practicum.event.model.Event;
 import ru.practicum.location.mapper.LocationDtoMapper;
+import ru.practicum.model.*;
 
 @Mapper(componentModel = "spring", uses = {
         CategoryDtoMapper.class,
@@ -26,7 +26,7 @@ public interface EventDtoMapper {
     @Mapping(target = "category.id", source = "category")
     @Mapping(target = "initiatorId", ignore = true)
     @Mapping(target = "confirmedRequests", expression = "java(0L)")
-    @Mapping(target = "state", expression = "java(ru.practicum.event.model.State.PENDING)")
+    @Mapping(target = "state", expression = "java(ru.practicum.model.State.PENDING)")
     @Mapping(target = "eventDate", source = "eventDate", dateFormat = "yyyy-MM-dd HH:mm:ss")
     @Mapping(target = "createdOn", expression = "java(java.time.LocalDateTime.now())")
     @Mapping(target = "publishedOn", ignore = true)
@@ -43,7 +43,7 @@ public interface EventDtoMapper {
     @Mapping(target = "category.id", source = "category")
     @Mapping(target = "initiatorId", ignore = true)
     @Mapping(target = "confirmedRequests", ignore = true)
-    @Mapping(target = "state", expression = "java((eventDto.getStateAction() != null && eventDto.getStateAction().equals(ru.practicum.event.model.StateAction.SEND_TO_REVIEW)) ? ru.practicum.event.model.State.PENDING : ru.practicum.event.model.State.CANCELED)")
+    @Mapping(target = "state", expression = "java((eventDto.getStateAction() != null && eventDto.getStateAction().equals(ru.practicum.model.StateAction.SEND_TO_REVIEW)) ? ru.practicum.model.State.PENDING : ru.practicum.model.State.CANCELED)")
     @Mapping(target = "eventDate", source = "eventDate", dateFormat = "yyyy-MM-dd HH:mm:ss")
     @Mapping(target = "createdOn", ignore = true)
     @Mapping(target = "publishedOn", ignore = true)
@@ -55,7 +55,7 @@ public interface EventDtoMapper {
     @Mapping(target = "category.id", source = "category")
     @Mapping(target = "initiatorId", ignore = true)
     @Mapping(target = "confirmedRequests", ignore = true)
-    @Mapping(target = "state", expression = "java((eventDto.getStateAction() != null && eventDto.getStateAction().equals(ru.practicum.event.model.StateAction.PUBLISH_EVENT)) ? ru.practicum.event.model.State.PUBLISHED : ru.practicum.event.model.State.CANCELED)")
+    @Mapping(target = "state", expression = "java((eventDto.getStateAction() != null && eventDto.getStateAction().equals(ru.practicum.model.StateAction.PUBLISH_EVENT)) ? ru.practicum.model.State.PUBLISHED : ru.practicum.model.State.CANCELED)")
     @Mapping(target = "eventDate", source = "eventDate", dateFormat = "yyyy-MM-dd HH:mm:ss")
     @Mapping(target = "createdOn", ignore = true)
     @Mapping(target = "publishedOn", ignore = true)

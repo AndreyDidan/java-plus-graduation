@@ -4,9 +4,9 @@ import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
-import ru.practicum.event.dto.EventFullDto;
-import ru.practicum.event.dto.EventShortDto;
 import ru.practicum.event.service.EventService;
+import ru.practicum.model.EventFullDto;
+import ru.practicum.model.EventShortDto;
 
 import java.util.Collection;
 import java.util.List;

@@ -3,12 +3,12 @@ package ru.practicum.category.service;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
-import ru.practicum.category.dto.CategoryDto;
-import ru.practicum.category.dto.NewCategoryDto;
 import ru.practicum.category.mapper.CategoryDtoMapper;
 import ru.practicum.category.model.Category;
 import ru.practicum.category.storage.CategoryRepository;
 import ru.practicum.exception.NotFoundException;
+import ru.practicum.model.CategoryDto;
+import ru.practicum.model.NewCategoryDto;
 
 import java.util.ArrayList;
 import java.util.Collection;
