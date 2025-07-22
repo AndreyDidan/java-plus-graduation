@@ -14,6 +14,7 @@ import ru.practicum.repository.CommentRepository;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.stream.Collectors;
 
 @Service("commentServiceImpl")
@@ -64,9 +65,13 @@ public class CommentServiceImpl implements CommentService {
     @Override
     public Collection<CommentDto> findAllByPublic(Long eventId, Integer from, Integer size) {
         final EventFullDto event = eventClient.findById(eventId);
+
+        if (!event.getState().equals(State.PUBLISHED)) {
+            return List.of();
+        }
+
         final Collection<Comment> comments = commentRepository.findAllByEventIdOrderByCreatedOn(event.getId(), (Pageable) PageRequest.of(from, size));
         return comments.stream()
-                .filter(comment -> eventClient.findById(comment.getEventId()).getState().equals(State.PUBLISHED))
                 .map(commentDtoMapper::mapToDto)
                 .collect(Collectors.toCollection(ArrayList::new));
     }
