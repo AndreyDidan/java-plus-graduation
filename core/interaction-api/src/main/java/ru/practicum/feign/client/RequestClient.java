@@ -14,16 +14,16 @@ public interface RequestClient {
 
     @PostMapping("/users/{userId}/requests")
     @ResponseStatus(HttpStatus.CREATED)
-    public ParticipationRequestDto create(@PathVariable Long userId, @RequestParam Long eventId);
+    ParticipationRequestDto create(@PathVariable Long userId, @RequestParam Long eventId);
 
     @GetMapping("/users/{userId}/requests")
-    public Collection<ParticipationRequestDto> getByRequesterId(@PathVariable Long userId);
+    Collection<ParticipationRequestDto> getByRequesterId(@PathVariable Long userId);
 
     @PatchMapping("/users/{userId}/requests/{requestId}/cancel")
-    public ParticipationRequestDto cancel(@PathVariable Long userId, @PathVariable Long requestId);
+    ParticipationRequestDto cancel(@PathVariable Long userId, @PathVariable Long requestId);
 
     @GetMapping("/users/{userId}/events/{eventId}/requests")
-    public Collection<ParticipationRequestDto> getByEventId(@PathVariable Long userId, @PathVariable Long eventId);
+    Collection<ParticipationRequestDto> getByEventId(@PathVariable Long userId, @PathVariable Long eventId);
 
     @PatchMapping("/users/{userId}/events/{eventId}/requests")
     EventRequestStatusUpdateResult updateStatus(@PathVariable Long userId, @PathVariable Long eventId,

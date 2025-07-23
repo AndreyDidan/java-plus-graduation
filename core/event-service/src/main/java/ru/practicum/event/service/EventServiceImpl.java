@@ -6,6 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.PathVariable;
 import ru.practicum.CreateHitDto;
 import ru.practicum.ResponseStatsDto;
 import ru.practicum.StatsClientWrapper;
@@ -19,6 +20,7 @@ import ru.practicum.exception.ConflictException;
 import ru.practicum.exception.ForbiddenException;
 import ru.practicum.exception.IncorrectRequestException;
 import ru.practicum.exception.NotFoundException;
+import ru.practicum.feign.client.RequestClient;
 import ru.practicum.feign.client.UserClient;
 import ru.practicum.location.mapper.LocationDtoMapper;
 import ru.practicum.location.model.Location;
@@ -44,6 +46,7 @@ public class EventServiceImpl implements EventService {
     private final CategoryDtoMapper categoryDtoMapper;
     private final LocationDtoMapper locationDtoMapper;
     private final StatsClientWrapper statsClientWrapper;
+    private final RequestClient requestClient;
 
     final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
@@ -54,7 +57,6 @@ public class EventServiceImpl implements EventService {
         final Event event = eventDtoMapper.mapFromDto(eventDto);
         event.setInitiatorId(userId);
         final Event createdEvent = eventRepository.save(event);
-
         return eventDtoMapper.mapToFullDto(createdEvent);
     }
 
@@ -131,10 +133,14 @@ public class EventServiceImpl implements EventService {
         final Location location = saveLocation(eventDto.getLocation());
         eventDtoMapper.updateFromDto(event, eventDto);
 
+        Collection<ParticipationRequestDto> confirmedRequests = requestClient.getByEventId(event.getInitiatorId(), eventId);
+        event.setConfirmedRequests((long) confirmedRequests.size());
+
         final Event updatedEvent = eventRepository.save(event);
 
         final EventFullDto updatedEventDto = eventDtoMapper.mapToFullDto(updatedEvent);
         updatedEventDto.setViews(countViews(updatedEvent.getId(), updatedEvent.getCreatedOn(), LocalDateTime.now()));
+
         return updatedEventDto;
     }
 
@@ -152,10 +158,14 @@ public class EventServiceImpl implements EventService {
             event.setPublishedOn(LocalDateTime.now());
         }
 
+        Collection<ParticipationRequestDto> confirmedRequests = requestClient.getByEventId(event.getInitiatorId(), eventId);
+        event.setConfirmedRequests((long) confirmedRequests.size());
+
         final Event updatedEvent = eventRepository.save(event);
 
         final EventFullDto updatedEventDto = eventDtoMapper.mapToFullDto(updatedEvent);
         updatedEventDto.setViews(countViews(updatedEvent.getId(), updatedEvent.getCreatedOn(), LocalDateTime.now()));
+
         return updatedEventDto;
     }
 
