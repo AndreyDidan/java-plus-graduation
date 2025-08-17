@@ -25,4 +25,10 @@ public interface EventService {
     void updateEventConfirmedRequests(Long eventId, Long confirmedRequests);
 
     EventFullDto getEventById(Long eventId);
+
+    Collection<EventShortDto> getRecommendedEvents(Long userId, Integer maxResults);
+
+    Collection<EventShortDto> getSimilarEvents(Long userId, Long eventId, Integer maxResults);
+
+    void addLikeToEvent(Long eventId, Long userId);
 }

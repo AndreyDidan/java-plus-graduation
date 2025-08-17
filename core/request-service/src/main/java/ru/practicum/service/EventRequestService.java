@@ -17,5 +17,7 @@ public interface EventRequestService {
     Collection<ParticipationRequestDto> getByRequesterId(Long requesterId);
 
     Collection<ParticipationRequestDto> getByEventId(Long eventInitiatorId, Long eventId);
+
+    boolean isUserParticipatedInEvent(long userId, long eventId);
 }
 

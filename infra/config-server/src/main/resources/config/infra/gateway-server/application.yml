@@ -45,7 +45,6 @@ spring:
           predicates:
             - Path=/admin/users/**
 
-
         - id: public_admin
           uri: lb://event-service
           predicates:

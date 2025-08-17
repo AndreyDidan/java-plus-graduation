@@ -39,10 +39,28 @@ public class PublicController {
     }
 
     @GetMapping("/{eventId}")
-    public EventFullDto findById(@PathVariable Long eventId, HttpServletRequest request) {
+    public EventFullDto findById(@PathVariable Long eventId, HttpServletRequest request, @RequestHeader("X-EWM-USER-ID") long userId) {
         log.info("Пришел GET запрос /events/{}", eventId);
-        final EventFullDto event = eventService.findById(null, eventId, true, request);
+        final EventFullDto event = eventService.findById(userId, eventId, true, request);
         log.info("Отправлен ответ GET /events/{} с телом: {}", eventId, event);
         return event;
+    }
+
+    @PutMapping("/{eventId}/like")
+    public void addLikeToEvent(@PathVariable Long eventId, @RequestHeader("X-EWM-USER-ID") Long userId) {
+        log.info("Пришел PUT запрос /events/{}/like от пользователя {}", eventId, userId);
+        eventService.addLikeToEvent(eventId, userId);
+        log.info("Обработан PUT запрос /events/{}/like от пользователя {}", eventId, userId);
+    }
+
+    @GetMapping("/recommendations")
+    public Collection<EventShortDto> getEventsRecommendations(@RequestHeader("X-EWM-USER-ID") Long userId,
+                                                        @RequestParam(defaultValue = "20") int maxResults) {
+        log.info("Пришел GET запрос /events/recommendations от пользователя {} с параметром maxResults={}",
+                userId, maxResults);
+        Collection<EventShortDto> recommendations = eventService.getRecommendedEvents(userId, maxResults);
+        log.info("Отправлен ответ GET /events/recommendations пользователю {} с телом: {}",
+                userId, recommendations);
+        return recommendations;
     }
 }

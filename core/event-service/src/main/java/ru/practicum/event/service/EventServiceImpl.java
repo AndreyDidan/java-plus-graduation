@@ -1,21 +1,22 @@
 package ru.practicum.event.service;
 
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.ValidationException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
-import org.springframework.web.bind.annotation.PathVariable;
-import ru.practicum.CreateHitDto;
-import ru.practicum.ResponseStatsDto;
-import ru.practicum.StatsClientWrapper;
 import ru.practicum.category.mapper.CategoryDtoMapper;
 import ru.practicum.category.model.Category;
 import ru.practicum.category.service.CategoryService;
 import ru.practicum.event.mapper.EventDtoMapper;
 import ru.practicum.event.model.Event;
 import ru.practicum.event.storage.EventRepository;
+import ru.practicum.ewm.CollectorClient;
+import ru.practicum.ewm.RecommendationsClient;
+import ru.practicum.ewm.stats.proto.ActionTypeProto;
+import ru.practicum.ewm.stats.proto.RecommendedEventProto;
 import ru.practicum.exception.ConflictException;
 import ru.practicum.exception.ForbiddenException;
 import ru.practicum.exception.IncorrectRequestException;
@@ -29,9 +30,8 @@ import ru.practicum.model.*;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
+import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -45,7 +45,8 @@ public class EventServiceImpl implements EventService {
     private final EventDtoMapper eventDtoMapper;
     private final CategoryDtoMapper categoryDtoMapper;
     private final LocationDtoMapper locationDtoMapper;
-    private final StatsClientWrapper statsClientWrapper;
+    private final CollectorClient collectorClient;
+    private final RecommendationsClient recommendationsClient;
     private final RequestClient requestClient;
 
     final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
@@ -54,54 +55,72 @@ public class EventServiceImpl implements EventService {
     public EventFullDto create(Long userId, NewEventDto eventDto) {
         validateEventDate(eventDto.getEventDate());
         CategoryDto category = categoryService.findById(eventDto.getCategory());
+        Location location = saveLocation(eventDto.getLocation());
+        findUserById(userId);
+
         final Event event = eventDtoMapper.mapFromDto(eventDto);
         event.setInitiatorId(userId);
+        event.setCategory(categoryDtoMapper.mapFromDto(category));
+        event.setLocation(location);
         final Event createdEvent = eventRepository.save(event);
         return eventDtoMapper.mapToFullDto(createdEvent);
     }
 
     @Override
-    public Collection<EventShortDto> findAllByPublic(String text, List<Long> categories, Boolean paid, String rangeStart, String rangeEnd, Boolean onlyAvailable, String sort, Integer from, Integer size, HttpServletRequest request) {
-        if (rangeStart != null && rangeEnd != null && LocalDateTime.parse(rangeStart, formatter).isAfter(LocalDateTime.parse(rangeEnd, formatter))) {
+    public Collection<EventShortDto> findAllByPublic(String text, List<Long> categories, Boolean paid, String rangeStart,
+                                                     String rangeEnd, Boolean onlyAvailable, String sort, Integer from,
+                                                     Integer size, HttpServletRequest request) {
+        if (rangeStart != null && rangeEnd != null && LocalDateTime.parse(rangeStart, formatter)
+                .isAfter(LocalDateTime.parse(rangeEnd, formatter))) {
             throw new IncorrectRequestException("RangeStart is after Range End");
         }
         if (sort != null && !sort.equals("EVENT_DATE") && !sort.equals("VIEWS")) {
             throw new IncorrectRequestException("Unknown sort type");
         }
-        saveView(request);
-        final Collection<Event> events = eventRepository.findAllByPublic(text, categories, paid, rangeStart == null ? null : LocalDateTime.parse(rangeStart, formatter), rangeEnd == null ? null : LocalDateTime.parse(rangeEnd, formatter), onlyAvailable, (Pageable) PageRequest.of(from, size));
+
+        final Collection<Event> events = eventRepository.findAllByPublic(text, categories, paid,
+                rangeStart == null ? null : LocalDateTime.parse(rangeStart, formatter),
+                rangeEnd == null ? null : LocalDateTime.parse(rangeEnd, formatter), onlyAvailable,
+                (Pageable) PageRequest.of(from, size));
+
+        Map<Long, Double> ratings = getRatings(events.stream().map(Event::getId).toList());
+
         return events.stream()
-                .map(event -> {
-                    final EventShortDto eventDto = eventDtoMapper.mapToShortDto(event);
-                    eventDto.setViews(countViews(event.getId(), event.getCreatedOn(), LocalDateTime.now()));
-                    return eventDto;
+                .peek(event -> event.setRating(ratings.getOrDefault(event.getId(), 0.0)))
+                .map(eventDtoMapper::mapToShortDto)
+                .sorted((e1, e2) -> {
+                    if (sort == null || sort.equals("EVENT_DATE")) {
+                        return e1.getEventDate().compareTo(e2.getEventDate());
+                    } else {
+                        return Double.compare(e2.getRating(), e1.getRating());
+                    }
                 })
-                .sorted((e1, e2) -> sort == null || sort.equals("EVENT_DATE") ? e1.getEventDate().compareTo(e2.getEventDate()) : e1.getViews().compareTo(e2.getViews()))
-                .collect(Collectors.toCollection(ArrayList::new));
+                .collect(Collectors.toList());
     }
 
     @Override
     public Collection<EventShortDto> findAllByPrivate(Long userId, Integer from, Integer size) {
         final Collection<Event> events = eventRepository.findAllByInitiatorId(userId, PageRequest.of(from, size));
+        Map<Long, Double> ratings = getRatings(events.stream().map(Event::getId).toList());
         return events.stream()
-                .map(event -> {
-                    final EventShortDto eventDto = eventDtoMapper.mapToShortDto(event);
-                    eventDto.setViews(countViews(event.getId(), event.getCreatedOn(), LocalDateTime.now()));
-                    return eventDto;
-                })
-                .collect(Collectors.toCollection(ArrayList::new));
+                .peek(event -> event.setRating(ratings.getOrDefault(event.getId(), 0.0)))
+                .map(eventDtoMapper::mapToShortDto)
+                .collect(Collectors.toList());
     }
 
     @Override
-    public Collection<EventFullDto> findAllByAdmin(List<Long> users, List<String> states, List<Long> categories, String rangeStart, String rangeEnd, Integer from, Integer size) {
-        final Collection<Event> events = eventRepository.findAllByAdmin(users, states, categories, rangeStart == null ? null : LocalDateTime.parse(rangeStart, formatter), rangeEnd == null ? null : LocalDateTime.parse(rangeEnd, formatter), (Pageable) PageRequest.of(from, size));
+    public Collection<EventFullDto> findAllByAdmin(List<Long> users, List<String> states, List<Long> categories,
+                                                   String rangeStart, String rangeEnd, Integer from, Integer size) {
+        final Collection<Event> events = eventRepository.findAllByAdmin(users, states, categories,
+                rangeStart == null ? null : LocalDateTime.parse(rangeStart, formatter),
+                rangeEnd == null ? null : LocalDateTime.parse(rangeEnd, formatter), (Pageable) PageRequest.of(from, size));
+
+        Map<Long, Double> ratings = getRatings(events.stream().map(Event::getId).toList());
+
         return events.stream()
-                .map(event -> {
-                    final EventFullDto eventDto = eventDtoMapper.mapToFullDto(event);
-                    eventDto.setViews(countViews(event.getId(), event.getCreatedOn(), LocalDateTime.now()));
-                    return eventDto;
-                })
-                .collect(Collectors.toCollection(ArrayList::new));
+                .peek(event -> event.setRating(ratings.getOrDefault(event.getId(), 0.0)))
+                .map(eventDtoMapper::mapToFullDto)
+                .collect(Collectors.toList());
     }
 
     @Override
@@ -111,19 +130,26 @@ public class EventServiceImpl implements EventService {
         if (isPublic && !event.getState().equals(State.PUBLISHED)) {
             throw new NotFoundException("Event with id=" + eventId + " was not found");
         } else if (isPublic) {
-            saveView(request);
+            if (userId != null) {
+                collectorClient.sendUserAction(userId, eventId, ActionTypeProto.ACTION_VIEW);
+            }
         } else if (userId != null) {
             findUserById(userId);
         }
 
         final EventFullDto eventDto = eventDtoMapper.mapToFullDto(event);
-        eventDto.setViews(countViews(event.getId(), event.getCreatedOn(), LocalDateTime.now()));
+        Map<Long, Double> ratings = getRatings(List.of(eventId));
+        eventDto.setRating(ratings.getOrDefault(eventId, 0.0));
         return eventDto;
     }
 
     @Override
     public EventFullDto updateByPrivate(Long userId, Long eventId, UpdateEventUserRequest eventDto) {
         final Event event = findEventById(eventId);
+
+        if (!event.getInitiatorId().equals(userId)) {
+            throw new ValidationException("User is not the initiator of the event");
+        }
 
         validateUser(event.getInitiatorId(), userId);
         validateEventDate(eventDto.getEventDate());
@@ -139,7 +165,9 @@ public class EventServiceImpl implements EventService {
         final Event updatedEvent = eventRepository.save(event);
 
         final EventFullDto updatedEventDto = eventDtoMapper.mapToFullDto(updatedEvent);
-        updatedEventDto.setViews(countViews(updatedEvent.getId(), updatedEvent.getCreatedOn(), LocalDateTime.now()));
+
+        Map<Long, Double> ratings = getRatings(List.of(eventId));
+        updatedEventDto.setRating(ratings.getOrDefault(eventId, 0.0));
 
         return updatedEventDto;
     }
@@ -148,7 +176,8 @@ public class EventServiceImpl implements EventService {
     public EventFullDto updateByAdmin(Long eventId, UpdateEventAdminRequest eventDto) {
         final Event event = findEventById(eventId);
 
-        validateEventDateForAdmin(eventDto.getEventDate() == null ? event.getEventDate() : LocalDateTime.parse(eventDto.getEventDate(), formatter), eventDto.getStateAction());
+        validateEventDateForAdmin(eventDto.getEventDate() == null ? event.getEventDate() : LocalDateTime.parse(eventDto
+                .getEventDate(), formatter), eventDto.getStateAction());
         validateStatusForAdmin(event.getState(), eventDto.getStateAction());
 
         final Category category = findCategoryById(eventDto.getCategory());
@@ -164,7 +193,9 @@ public class EventServiceImpl implements EventService {
         final Event updatedEvent = eventRepository.save(event);
 
         final EventFullDto updatedEventDto = eventDtoMapper.mapToFullDto(updatedEvent);
-        updatedEventDto.setViews(countViews(updatedEvent.getId(), updatedEvent.getCreatedOn(), LocalDateTime.now()));
+
+        Map<Long, Double> ratings = getRatings(List.of(eventId));
+        updatedEventDto.setRating(ratings.getOrDefault(eventId, 0.0));
 
         return updatedEventDto;
     }
@@ -192,7 +223,8 @@ public class EventServiceImpl implements EventService {
 
     private void validateEventDate(String eventDate) {
         if (eventDate != null && LocalDateTime.parse(eventDate, formatter).isBefore(LocalDateTime.now().plusHours(2))) {
-            throw new IncorrectRequestException("Event date should be early than 2 hours than current moment " + eventDate + " " + LocalDateTime.parse(eventDate, formatter));
+            throw new IncorrectRequestException("Event date should be early than 2 hours than current moment "
+                    + eventDate + " " + LocalDateTime.parse(eventDate, formatter));
         }
     }
 
@@ -226,7 +258,8 @@ public class EventServiceImpl implements EventService {
         if (state.equals(State.PUBLISHED) && stateAction.equals(StateAction.REJECT_EVENT)) {
             throw new ConflictException("Can't reject already published event");
         }
-        if (stateAction != null && !stateAction.equals(StateAction.REJECT_EVENT) && !stateAction.equals(StateAction.PUBLISH_EVENT)) {
+        if (stateAction != null && !stateAction.equals(StateAction.REJECT_EVENT) && !stateAction
+                 .equals(StateAction.PUBLISH_EVENT)) {
             throw new ForbiddenException("Unknown state action");
         }
     }
@@ -262,26 +295,76 @@ public class EventServiceImpl implements EventService {
         return event;
     }
 
-    private void saveView(HttpServletRequest request) {
-        CreateHitDto createHitDto = CreateHitDto.builder()
-                .uri(request.getRequestURI())
-                .ip(request.getRemoteAddr())
-                .timestamp(LocalDateTime.now().format(formatter))
-                .build();
-        log.info("Сохраняем просмотр. Запрос URI: {}, IP: {}, Время: {}", request.getRequestURI(),
-                request.getRemoteAddr(), LocalDateTime.now().format(formatter));
-        try {
-            statsClientWrapper.createHit(createHitDto);
-        } catch (Exception e) {
-            log.error("Ошибка при сохранении просмотра для URI: {}. Сообщение об ошибке: {}", request.getRequestURI(),
-                    e.getMessage(), e);
-        }
+    @Override
+    public Collection<EventShortDto> getRecommendedEvents(Long userId, Integer maxResults) {
+        List<RecommendedEventProto> protos = recommendationsClient.getRecommendationsForUser(userId, maxResults)
+                .collect(Collectors.toList());
+
+        List<Long> eventIds = protos.stream()
+                .map(RecommendedEventProto::getEventId)
+                .collect(Collectors.toList());
+
+        Map<Long, Event> eventsMap = eventRepository.findAllById(eventIds).stream()
+                .collect(Collectors.toMap(Event::getId, Function.identity()));
+
+        return protos.stream()
+                .map(proto -> {
+                    Event event = eventsMap.get(proto.getEventId());
+                    if (event == null) return null;
+                    event.setRating(proto.getScore());
+                    return eventDtoMapper.mapToShortDto(event);
+                })
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
     }
 
-    private Long countViews(Long eventId, LocalDateTime start, LocalDateTime end) {
-        final List<String> uris = List.of("/events/" + eventId);
-        return statsClientWrapper.getStats(start.format(formatter), end.format(formatter), uris, true).stream()
-                .mapToLong(ResponseStatsDto::getHits)
-                .sum();
+    @Override
+    public Collection<EventShortDto> getSimilarEvents(Long userId, Long eventId, Integer maxResults) {
+        List<RecommendedEventProto> protos = recommendationsClient.getSimilarEvents(eventId, userId, maxResults)
+                .collect(Collectors.toList());
+
+        List<Long> eventIds = protos.stream()
+                .map(RecommendedEventProto::getEventId)
+                .collect(Collectors.toList());
+
+        Map<Long, Event> eventsMap = eventRepository.findAllById(eventIds).stream()
+                .collect(Collectors.toMap(Event::getId, Function.identity()));
+
+        return protos.stream()
+                .map(proto -> {
+                    Event event = eventsMap.get(proto.getEventId());
+                    if (event == null) return null;
+                    event.setRating(proto.getScore());
+                    return eventDtoMapper.mapToShortDto(event);
+                })
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+    }
+
+    private Double getRating(Long eventId) {
+        return recommendationsClient.getInteractionsCount(List.of(eventId))
+                .findFirst()
+                .map(RecommendedEventProto::getScore)
+                .orElse(0.0);
+    }
+
+    private Map<Long, Double> getRatings(List<Long> eventIds) {
+        if (eventIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        return recommendationsClient.getInteractionsCount(eventIds)
+                .collect(Collectors.toMap(
+                        RecommendedEventProto::getEventId,
+                        RecommendedEventProto::getScore,
+                        (a, b) -> b
+                ));
+    }
+
+    @Override
+    public void addLikeToEvent(Long eventId, Long userId) {
+        if (!requestClient.isUserParticipatedInEvent(eventId, userId)) {
+            throw new IncorrectRequestException("Пользователь не участвует в этом событии.");
+        }
+        collectorClient.sendUserAction(userId, eventId, ActionTypeProto.ACTION_LIKE);
     }
 }

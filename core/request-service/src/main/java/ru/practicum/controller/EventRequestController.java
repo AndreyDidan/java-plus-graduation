@@ -53,10 +53,15 @@ public class EventRequestController {
     }
 
     @PatchMapping("/events/{eventId}/requests")
-    public EventRequestStatusUpdateResult updateStatus(@PathVariable Long userId, @PathVariable Long eventId, @RequestBody EventRequestStatusUpdateRequest requestsToUpdate) {
+    public EventRequestStatusUpdateResult updateStatus(@PathVariable Long userId, @PathVariable Long eventId,
+                                                       @RequestBody EventRequestStatusUpdateRequest requestsToUpdate) {
         log.info("Пришел PATCH запрос /users/{}/events/{}/requests с телом {}", userId, eventId, requestsToUpdate);
         final EventRequestStatusUpdateResult result = eventRequestService.updateStatus(userId, eventId, requestsToUpdate);
         log.info("Отправлен ответ PATCH /users/{}/events/{}/requests с телом: {}", userId, eventId, result);
         return result;
+    }
+
+    public boolean isUserParticipatedInEvent(long userId, long eventId) {
+        return eventRequestService.isUserParticipatedInEvent(userId, eventId);
     }
 }
