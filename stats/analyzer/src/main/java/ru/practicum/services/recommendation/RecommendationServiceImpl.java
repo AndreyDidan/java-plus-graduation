@@ -93,9 +93,12 @@ public class RecommendationServiceImpl implements RecommendationService {
         List<RecommendedEventProto> eventProtoList = new ArrayList<>();
         for (Long eventId : weightedScoreForUnwatchedEvent.keySet()) {
 
-            RecommendedEventProto.newBuilder()
-                    .setEventId(eventId)
-                    .setScore(weightedScoreForUnwatchedEvent.get(eventId) / weightedScoreForUnwatchedEvent.size());
+            eventProtoList.add(
+                    RecommendedEventProto.newBuilder()
+                            .setEventId(eventId)
+                            .setScore(weightedScoreForUnwatchedEvent.get(eventId) / weightedScoreForUnwatchedEvent.size())
+                            .build()
+            );
         }
 
         return eventProtoList;

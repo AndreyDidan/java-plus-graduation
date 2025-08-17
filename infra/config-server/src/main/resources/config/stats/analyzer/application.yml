@@ -44,8 +44,8 @@ spring:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: ru.practicum.kafka.serializer.GeneralAvroSerializer
     topics:
-      user-action-topic: stats.user-actions.v1
-      events-similarity-topic: stats.events-similarity.v1
+      userActionsTopic: stats.user-actions.v1
+      eventsSimilarityTopic: stats.events-similarity.v1
 
 grpc:
   analyzer: # <- должно соответствовать значению в @GrpcClient

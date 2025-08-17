@@ -28,8 +28,7 @@ public class ConfigKafkaProperties {
     }
 
     public Properties getSnapshotProperites() {
-        kafkaSettings = kafkaSnaphotkafkaConfig();
-        return getProperties(kafkaSettings);
+        return getProperties(kafkaSnaphotkafkaConfig());
     }
 
     public Properties getHubProperties() {
