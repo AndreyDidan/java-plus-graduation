@@ -46,6 +46,8 @@ spring:
       eventsSimilarityTopic: stats.events-similarity.v1
 
 grpc:
+  server:
+    port: 0
   analyzer: # <- должно соответствовать значению в @GrpcClient
     address: 'discovery:///analyzer' # адрес gRPC-сервиса
     enableKeepAlive: true

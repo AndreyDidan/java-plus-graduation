@@ -1,5 +1,12 @@
-server:
-  port: 0
+grpc:
+  server:
+    port: 0
+  client:
+    collector:
+      address: 'discovery:///aggregator'
+      enableKeepAlive: true
+      keepAliveWithoutCalls: true
+      negotiationType: plaintext
 
 app:
   kafka:
