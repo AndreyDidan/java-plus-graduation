@@ -1,4 +1,4 @@
-package ru.practicum.service;
+package ru.practicum.proccesor;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -9,9 +9,11 @@ import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.WakeupException;
 import org.springframework.stereotype.Component;
-import ru.practicum.configuration.KafkaConfiguration;
+import ru.practicum.configuration.KafkaConfig;
 import ru.practicum.ewm.stats.avro.EventSimilarityAvro;
-import ru.practicum.ewm.stats.avro.UserActionAvro;
+import ru.practicum.mapper.Mapper;
+import ru.practicum.model.EventSimilarity;
+import ru.practicum.repository.EventSimilarityRepository;
 
 import java.time.Duration;
 import java.util.HashMap;
@@ -21,23 +23,23 @@ import java.util.Map;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class AggStarter {
-    private final SimilarityService similarityService;
-    private final Consumer<String, UserActionAvro> consumer;
-    private final KafkaConfiguration kafkaConfig;
+public class EventSimilarityProcessor implements Runnable {
+    private final Consumer<String, EventSimilarityAvro> consumer;
+    private final KafkaConfig kafkaConfig;
     private final Map<TopicPartition, OffsetAndMetadata> currentOffsets = new HashMap<>();
+    private final EventSimilarityRepository eventSimilarityRepository;
 
-    public void start() {
+    @Override
+    public void run() {
         Runtime.getRuntime().addShutdownHook(new Thread(consumer::wakeup));
-
         try {
-            consumer.subscribe(List.of(kafkaConfig.getKafkaProperties().getUserActionTopic()));
+            consumer.subscribe(List.of(kafkaConfig.getKafkaProperties().getEventsSimilarityTopic()));
             while (true) {
-                ConsumerRecords<String, UserActionAvro> records = consumer
-                        .poll(Duration.ofMillis(kafkaConfig.getKafkaProperties().getConsumerAttemptTimeout()));
+                ConsumerRecords<String, EventSimilarityAvro> records = consumer
+                        .poll(Duration.ofMillis(kafkaConfig.getKafkaProperties()
+                                .getEventSimilarityConsumer().getAttemptTimeout()));
                 int count = 0;
-                for (ConsumerRecord<String, UserActionAvro> record : records) {
-                    log.info("UserActionAvro got from consumer: {}", record);
+                for (ConsumerRecord<String, EventSimilarityAvro> record : records) {
                     handleRecord(record);
                     manageOffsets(record, count, consumer);
                     count++;
@@ -48,7 +50,7 @@ public class AggStarter {
         } catch (WakeupException ignores) {
             // игнорируем - закрываем консьюмер и продюсер в блоке finally
         } catch (Exception e) {
-            log.error("Ошибка во время обработки событий от датчиков", e);
+            log.error("Ошибка во время обработки события похожести ", e);
         } finally {
 
             try {
@@ -57,20 +59,24 @@ public class AggStarter {
             } finally {
                 log.info("Закрываем консьюмер");
                 consumer.close();
-                log.info("Закрываем продюсер");
-                similarityService.close();
             }
         }
     }
 
-    private void handleRecord(ConsumerRecord<String, UserActionAvro> consumerRecord) throws InterruptedException {
-        List<EventSimilarityAvro> eventSimilarityList = similarityService.updateSimilarity(consumerRecord.value());
-        for (EventSimilarityAvro eventSimilarity : eventSimilarityList) {
-            similarityService.collectEventSimilarity(eventSimilarity);
-        }
+    private void handleRecord(ConsumerRecord<String, EventSimilarityAvro> consumerRecord) throws InterruptedException {
+        log.info("handleRecord {}", consumerRecord);
+        EventSimilarity eventSimilarity = Mapper.mapToEventSimilarity(consumerRecord.value());
+
+        eventSimilarityRepository.findByAeventIdAndBeventId(
+                eventSimilarity.getAeventId(),
+                eventSimilarity.getBeventId()).ifPresent(oldEventSimilarity ->
+                eventSimilarity.setId(oldEventSimilarity.getId()));
+        eventSimilarityRepository.save(eventSimilarity);
     }
 
-    private void manageOffsets(ConsumerRecord<String, UserActionAvro> consumerRecord, int count, Consumer<String, UserActionAvro> consumer) {
+    private void manageOffsets(ConsumerRecord<String, EventSimilarityAvro> consumerRecord,
+                               int count,
+                               Consumer<String, EventSimilarityAvro> consumer) {
         currentOffsets.put(
                 new TopicPartition(consumerRecord.topic(), consumerRecord.partition()),
                 new OffsetAndMetadata(consumerRecord.offset() + 1)

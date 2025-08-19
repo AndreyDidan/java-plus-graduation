@@ -1,29 +1,48 @@
 package ru.practicum.model;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import jakarta.persistence.*;
+import lombok.*;
+import lombok.experimental.FieldDefaults;
+import org.hibernate.proxy.HibernateProxy;
 
-import java.time.Instant;
+import java.util.Objects;
 
-@Builder(toBuilder = true)
-@Data
 @Entity
-@Table(name = "events_similarity")
+@Table(name = "event_similarity")
+@Getter
+@Setter
+@Builder(toBuilder = true)
+@FieldDefaults(level = AccessLevel.PRIVATE)
 @AllArgsConstructor
 @NoArgsConstructor
 public class EventSimilarity {
     @Id
-    @Column(name = "event_a")
-    private Long eventA;
-    @Column(name = "event_b")
-    private Long eventB;
-    @Column(name = "score")
-    private Double score;
-    private Instant created;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    Long id;
+
+    Long aeventId;
+
+    Long beventId;
+
+    double score;
+
+    @Override
+    public final boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null) return false;
+        Class<?> oEffectiveClass = o instanceof HibernateProxy ?
+                ((HibernateProxy) o).getHibernateLazyInitializer().getPersistentClass() : o.getClass();
+        Class<?> thisEffectiveClass = this instanceof HibernateProxy ?
+                ((HibernateProxy) this).getHibernateLazyInitializer().getPersistentClass() : this.getClass();
+        if (thisEffectiveClass != oEffectiveClass) return false;
+        EventSimilarity eventSimilarity = (EventSimilarity) o;
+        return getId() != null && Objects.equals(getId(), eventSimilarity.getId());
+    }
+
+    @Override
+    public final int hashCode() {
+        return this instanceof HibernateProxy
+                ? ((HibernateProxy) this).getHibernateLazyInitializer().getPersistentClass().hashCode()
+                : getClass().hashCode();
+    }
 }

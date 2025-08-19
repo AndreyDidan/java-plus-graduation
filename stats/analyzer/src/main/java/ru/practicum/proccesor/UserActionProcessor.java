@@ -1,4 +1,4 @@
-package ru.practicum.service;
+package ru.practicum.proccesor;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -9,9 +9,9 @@ import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.WakeupException;
 import org.springframework.stereotype.Component;
-import ru.practicum.configuration.KafkaConfiguration;
-import ru.practicum.ewm.stats.avro.EventSimilarityAvro;
+import ru.practicum.configuration.KafkaConfig;
 import ru.practicum.ewm.stats.avro.UserActionAvro;
+import ru.practicum.services.RecommendationService;
 
 import java.time.Duration;
 import java.util.HashMap;
@@ -21,23 +21,23 @@ import java.util.Map;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class AggregationStarter {
-    private final SimilarityService similarityService;
+public class UserActionProcessor implements Runnable {
     private final Consumer<String, UserActionAvro> consumer;
-    private final KafkaConfiguration kafkaConfig;
+    private final KafkaConfig kafkaConfig;
     private final Map<TopicPartition, OffsetAndMetadata> currentOffsets = new HashMap<>();
+    private final RecommendationService recommendationService;
 
-    public void start() {
+    @Override
+    public void run() {
         Runtime.getRuntime().addShutdownHook(new Thread(consumer::wakeup));
-
         try {
             consumer.subscribe(List.of(kafkaConfig.getKafkaProperties().getUserActionTopic()));
             while (true) {
                 ConsumerRecords<String, UserActionAvro> records = consumer
-                        .poll(Duration.ofMillis(kafkaConfig.getKafkaProperties().getConsumerAttemptTimeout()));
+                        .poll(Duration.ofMillis(kafkaConfig.getKafkaProperties()
+                                .getUserActionConsumer().getAttemptTimeout()));
                 int count = 0;
                 for (ConsumerRecord<String, UserActionAvro> record : records) {
-                    log.info("UserActionAvro got from consumer: {}", record);
                     handleRecord(record);
                     manageOffsets(record, count, consumer);
                     count++;
@@ -48,7 +48,7 @@ public class AggregationStarter {
         } catch (WakeupException ignores) {
             // игнорируем - закрываем консьюмер и продюсер в блоке finally
         } catch (Exception e) {
-            log.error("Ошибка во время обработки событий от датчиков", e);
+            log.error("Ошибка во время обработки события хаба ", e);
         } finally {
 
             try {
@@ -57,20 +57,18 @@ public class AggregationStarter {
             } finally {
                 log.info("Закрываем консьюмер");
                 consumer.close();
-                log.info("Закрываем продюсер");
-                similarityService.close();
             }
         }
     }
 
     private void handleRecord(ConsumerRecord<String, UserActionAvro> consumerRecord) throws InterruptedException {
-        List<EventSimilarityAvro> eventSimilarityList = similarityService.updateSimilarity(consumerRecord.value());
-        for (EventSimilarityAvro eventSimilarity : eventSimilarityList) {
-            similarityService.collectEventSimilarity(eventSimilarity);
-        }
+        log.info("handleRecord {}", consumerRecord);
+        recommendationService.saveUserAction(consumerRecord.value());
     }
 
-    private void manageOffsets(ConsumerRecord<String, UserActionAvro> consumerRecord, int count, Consumer<String, UserActionAvro> consumer) {
+    private void manageOffsets(ConsumerRecord<String, UserActionAvro> consumerRecord,
+                               int count,
+                               Consumer<String, UserActionAvro> consumer) {
         currentOffsets.put(
                 new TopicPartition(consumerRecord.topic(), consumerRecord.partition()),
                 new OffsetAndMetadata(consumerRecord.offset() + 1)

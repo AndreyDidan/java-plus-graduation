@@ -1,58 +1,53 @@
+grpc:
+  server:
+    port: 0
+  client:
+    analyzer:
+      address: 'discovery:///analyzer'
+      enableKeepAlive: true
+      keepAliveWithoutCalls: true
+      negotiationType: plaintext
+
+analyzer:
+  kafka:
+    config:
+      bootstrap-servers: "localhost:9092"
+
+      user-action-consumer:
+        group-id: "action-analyzer-group"
+        client-id: "action-consumer-1"
+        key-deserializer: "org.apache.kafka.common.serialization.StringDeserializer"
+        value-deserializer: "ru.practicum.kafka.deserializer.UserActionDeserializer"
+        attempt-timeout: 1000
+        enable-auto-commit: "false"
+
+      event-similarity-consumer:
+        group-id: "similarity-analyzer-group"
+        client-id: "similarity-consumer-1"
+        key-deserializer: "org.apache.kafka.common.serialization.StringDeserializer"
+        value-deserializer: "ru.practicum.kafka.deserializer.EventSimilarityDeserializer"
+        attempt-timeout: 1000
+        enable-auto-commit: "false"
+
+      user-action-topic: "stats.user-actions.v1"
+      events-similarity-topic: "stats.events-similarity.v1"
+
 spring:
-  application:
-    name: analyzer
   jpa:
+    show-sql: true
     hibernate:
-      ddl-auto: update
+      ddl-auto: none
     properties:
       hibernate:
         format_sql: true
   sql:
     init:
       mode: always
+  output:
+    ansi:
+      enabled: ALWAYS
   datasource:
+    driver-class-name: org.postgresql.Driver
     url: jdbc:postgresql://localhost:6546/analyzer_db
     username: user
     password: password
-    driver-class-name: org.postgresql.Driver
-
-  kafka:
-    consumer-user-actions:
-      bootstrap-servers: localhost:9092
-      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-      value-deserializer: ru.practicum.kafka.deserializer.UserActionDeserializer
-      client-id: user-consumer
-      group-id: group-user
-      max-poll-records: 100
-      fetch-max-bytes: 3072000
-      max-partition-fetch-bytes: 307200
-      consume-attempts-timeout-ms: 1000
-    consumer-events-similarity:
-      bootstrap-servers: localhost:9092
-      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-      value-deserializer: ru.practicum.kafka.deserializer.EventSimilarityDeserializer
-      client-id: similarity-consumer
-      group-id: group-similarity
-      max-poll-records: 100
-      fetch-max-bytes: 3072000
-      max-partition-fetch-bytes: 307200
-      consume-attempts-timeout-ms: 1000
-    producer:
-      bootstrap-servers: localhost:9092
-      key-serializer: org.apache.kafka.common.serialization.StringSerializer
-      value-serializer: ru.practicum.kafka.serializer.GeneralAvroSerializer
-    topics:
-      userActionsTopic: stats.user-actions.v1
-      eventsSimilarityTopic: stats.events-similarity.v1
-
-grpc:
-  server:
-    port: 0
-  analyzer: # <- должно соответствовать значению в @GrpcClient
-    address: 'discovery:///analyzer' # адрес gRPC-сервиса
-    enableKeepAlive: true
-    keepAliveWithoutCalls: true
-    negotiationType: plaintext
-logging:
-  level:
-    io.grpc: DEBUG
