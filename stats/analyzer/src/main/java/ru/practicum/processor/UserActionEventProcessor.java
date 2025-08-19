@@ -80,6 +80,12 @@ public class UserActionEventProcessor implements Runnable {
 
     private void handleRecord(ConsumerRecord<String, UserActionAvro> record) throws InterruptedException {
 
+        UserActionAvro value = record.value();
+        if (value == null) {
+            log.warn("Получено null значение из Kafka для offset={}, partition={}", record.offset(), record.partition());
+            return; // Пропускаем обработку, чтобы не падать
+        }
+
         log.info("топик = {}, партиция = {}, смещение = {}, значение: {}\n",
                 record.topic(), record.partition(), record.offset(), record.value());
         userActionService.handleUserAction(record.value());

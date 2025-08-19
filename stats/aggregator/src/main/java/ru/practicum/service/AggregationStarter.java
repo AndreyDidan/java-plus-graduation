@@ -1,4 +1,4 @@
-package ru.practicum.service;
+/*package ru.practicum.service;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.specific.SpecificRecordBase;
@@ -30,7 +30,8 @@ public class AggregationStarter {
     private final KafkaConfig kafkaConfig;
     private final AppConfig appConfig;
 
-    public AggregationStarter(AggregatorService aggregatorService, SimilarityEventProducer eventProducer, KafkaConfig kafkaConfig, AppConfig appConfig) {
+    public AggregationStarter(AggregatorService aggregatorService, SimilarityEventProducer eventProducer,
+    KafkaConfig kafkaConfig, AppConfig appConfig) {
         this.aggregatorService = aggregatorService;
         this.similarityEventProducer = eventProducer;
         this.kafkaConfig = kafkaConfig;
@@ -61,7 +62,8 @@ public class AggregationStarter {
         try {
             consumer.subscribe(List.of(appConfig.getTopics().getActionTopic()));
             while (true) {
-                ConsumerRecords<String, UserActionAvro> records = consumer.poll(appConfig.getConsumer().getConsumeAttemptsTimeoutMs());
+                ConsumerRecords<String, UserActionAvro> records = consumer.poll(appConfig.getConsumer()
+                        .getConsumeAttemptsTimeoutMs());
 
                 int count = 0;
                 for (ConsumerRecord<String, UserActionAvro> record : records) {
@@ -121,3 +123,4 @@ public class AggregationStarter {
         }
     }
 }
+*/

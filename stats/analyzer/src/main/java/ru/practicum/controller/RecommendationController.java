@@ -48,7 +48,7 @@ public class RecommendationController extends RecommendationsControllerGrpc.Reco
     public void getInteractionsCount(InteractionsCountRequestProto request,
                                      StreamObserver<RecommendedEventProto> responseObserver) {
         try {
-            log.info("Получен запрос на получение количества действий по событиям. Этап 1");
+            log.info("Получен запрос getInteractionsCount с eventIds = {}", request.getEventIdList());
             recommendationService.getInteractionsCount(request)
                     .forEach(responseObserver::onNext);
             log.info("Получен запрос на получение количества действий по событиям. Этап 2");

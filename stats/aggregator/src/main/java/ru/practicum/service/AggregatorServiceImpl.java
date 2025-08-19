@@ -1,4 +1,4 @@
-package ru.practicum.service;
+/*package ru.practicum.service;
 
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -47,7 +47,6 @@ public class AggregatorServiceImpl implements AggregatorService {
             long otherEventId = entry.getKey();
             double otherWeight = entry.getValue();
 
-            // Обновляем minSum для пары
             double minSum = getMinScore(eventId, otherEventId);
             double deltaMin = Math.min(newScore, otherWeight) - Math.min(currentWeight, otherWeight);
             if (deltaMin != 0) {
@@ -120,4 +119,4 @@ public class AggregatorServiceImpl implements AggregatorService {
             case LIKE -> 1.0;
         };
     }
-}
+}*/

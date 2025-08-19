@@ -10,6 +10,7 @@ import org.apache.avro.specific.SpecificRecordBase;
 import org.apache.kafka.common.serialization.Deserializer;
 
 import java.io.IOException;
+import java.util.Arrays;
 
 @Slf4j
 public class BaseAvroDeserializer <T extends SpecificRecordBase> implements Deserializer<T> {
@@ -29,13 +30,23 @@ public class BaseAvroDeserializer <T extends SpecificRecordBase> implements Dese
 
     @Override
     public T deserialize(String topic, byte[] data) {
-        // Код десериализации двоичных данных
-        if (data == null || data.length == 0) return null;
         try {
+            if (data == null || data.length == 0) {
+                log.warn("Десериализация: пустой payload из топика {}", topic);
+                return null;
+            }
+
+            // Логируем длину и первые несколько байтов для диагностики
+            log.debug("Десериализация: длина данных = {}, первые байты = {}",
+                    data.length, Arrays.toString(Arrays.copyOf(data, Math.min(data.length, 10))));
+
             Decoder decoder = decoderFactory.binaryDecoder(data, null);
             return reader.read(null, decoder);
         } catch (IOException e) {
             log.error("Ошибка при десериализации Avro для топика {}: {}", topic, e.getMessage());
+            return null;
+        } catch (Exception e) {
+            log.error("Ошибка при десериализации Avro для топика {}: {}", topic, e.getMessage(), e);
             return null;
         }
     }

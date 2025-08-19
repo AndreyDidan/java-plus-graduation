@@ -1,4 +1,4 @@
-package ru.practicum.config;
+/*package ru.practicum.config;
 
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -37,4 +37,4 @@ public class AppConfig {
         private String actionTopic;
         private String similarityTopic;
     }
-}
+}*/

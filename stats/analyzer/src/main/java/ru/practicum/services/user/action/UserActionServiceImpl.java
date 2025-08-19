@@ -19,6 +19,11 @@ public class UserActionServiceImpl implements UserActionService {
     @Override
     public void handleUserAction(UserActionAvro userActionAvro) {
 
+        if (userActionAvro == null) {
+            log.error("Получено null-сообщение в handleUserAction");
+            return;
+        }
+
         Optional<UserAction> userActionOptional = userActionRepository.findByUserIdAndEventId(userActionAvro.getUserId(),
                 userActionAvro.getEventId());
         if (userActionOptional.isPresent()) {

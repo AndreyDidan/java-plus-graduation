@@ -1,4 +1,4 @@
-package ru.practicum.kafka;
+/*package ru.practicum.kafka;
 
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
@@ -18,6 +18,7 @@ public class KafkaConfig {
     public KafkaConfig(AppConfig appConfig) {
         this.appConfig = appConfig;
     }
+
 
     public Properties getConsumerProperties() {
         Properties properties = new Properties();
@@ -46,4 +47,4 @@ public class KafkaConfig {
         log.info("Подготовили конфиг кафка продьюсера = {}", config);
         return config;
     }
-}
+}*/

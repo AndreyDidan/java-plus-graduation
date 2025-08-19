@@ -8,22 +8,23 @@ grpc:
       keepAliveWithoutCalls: true
       negotiationType: plaintext
 
-app:
+spring:
+  application:
+    aggregator
   kafka:
-    producer:
-      bootstrap-servers: localhost:9092
-      key-serializer: org.apache.kafka.common.serialization.StringSerializer
-      value-serializer: ru.practicum.kafka.serializer.GeneralAvroSerializer
-    consumer:
-      bootstrap-servers: localhost:9092
-      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-      value-deserializer: ru.practicum.kafka.deserializer.UserActionDeserializer
-      client-id: action-consumer
-      group-id: group-practicum
-      max-poll-records: 100
-      fetch-max-bytes: 3072000
-      max-partition-fetch-bytes: 307200
-      consume-attempts-timeout-ms: 1000
-    topics:
-      action-topic: stats.user-actions.v1
-      similarity-topic: stats.events-similarity.v1
+    config:
+      bootstrap-servers: "localhost:9092"
+
+      producer-client-id-config: "producer-2"
+      producer-key-serializer: "org.apache.kafka.common.serialization.StringSerializer"
+      producer-value-serializer: "ru.practicum.kafka.serializer.GeneralAvroSerializer"
+
+      consumer-group-id: "aggregator-group"
+      consumer-client-id-config: "consumer-1"
+      consumer-key-deserializer: "org.apache.kafka.common.serialization.StringDeserializer"
+      consumer-value-deserializer: "ru.practicum.kafka.deserializer.UserActionDeserializer"
+      consumer-attempt-timeout: 1000
+      consumer-enable-auto-commit: "false"
+
+      user-action-topic: "stats.user-actions.v1"
+      events-similarity-topic: "stats.events-similarity.v1"

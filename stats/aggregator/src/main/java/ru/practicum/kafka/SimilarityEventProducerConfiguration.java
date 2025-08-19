@@ -1,4 +1,4 @@
-package ru.practicum.kafka;
+/*package ru.practicum.kafka;
 
 import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
@@ -49,4 +49,4 @@ public class SimilarityEventProducerConfiguration {
             }
         };
     }
-}
+}*/
