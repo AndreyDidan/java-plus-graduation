@@ -10,8 +10,7 @@ import java.util.Objects;
 
 @Entity
 @Table(name = "user_action")
-@Getter
-@Setter
+@Data
 @Builder(toBuilder = true)
 @FieldDefaults(level = AccessLevel.PRIVATE)
 @AllArgsConstructor

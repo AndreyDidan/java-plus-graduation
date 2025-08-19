@@ -18,7 +18,7 @@ public class RecommendationsController extends RecommendationsControllerGrpc.Rec
     @Override
     public void getRecommendationsForUser(UserPredictionsRequestProto request,
                                           StreamObserver<RecommendedEventProto> responseObserver) {
-        log.info("RecommendationsController call getRecommendationsForUser for request = {}", request);
+        log.info("RecommendationsController getRecommendationsForUser = {}", request);
         List<RecommendedEventProto> recommendedEvents = recommendationService.generateRecommendationsForUser(request);
         for (RecommendedEventProto event : recommendedEvents) {
             responseObserver.onNext(event);
@@ -29,7 +29,7 @@ public class RecommendationsController extends RecommendationsControllerGrpc.Rec
     @Override
     public void getSimilarEvents(SimilarEventsRequestProto request,
                                  StreamObserver<RecommendedEventProto> responseObserver) {
-        log.info("RecommendationsController call getSimilarEvents for request = {}", request);
+        log.info("RecommendationsController getSimilarEvents = {}", request);
         List<RecommendedEventProto> recommendedEvents = recommendationService.getSimilarEvents(request);
         for (RecommendedEventProto event : recommendedEvents) {
             responseObserver.onNext(event);
@@ -40,7 +40,7 @@ public class RecommendationsController extends RecommendationsControllerGrpc.Rec
     @Override
     public void getInteractionsCount(InteractionsCountRequestProto request,
                                      StreamObserver<RecommendedEventProto> responseObserver) {
-        log.info("RecommendationsController call getInteractionsCount for request = {}", request);
+        log.info("RecommendationsController getInteractionsCount = {}", request);
         List<RecommendedEventProto> recommendedEvents = recommendationService.getInteractionsCount(request);
         for (RecommendedEventProto event : recommendedEvents) {
             responseObserver.onNext(event);

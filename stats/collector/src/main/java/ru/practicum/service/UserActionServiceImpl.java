@@ -1,4 +1,4 @@
-package ru.practicum.handler;
+package ru.practicum.service;
 
 import com.google.protobuf.Timestamp;
 import lombok.RequiredArgsConstructor;
@@ -18,7 +18,7 @@ import java.time.Instant;
 @Slf4j
 @RequiredArgsConstructor
 @Component
-public class UserActionHandlerImpl implements UserActionHandler {
+public class UserActionServiceImpl implements UserActionService {
 
     @Value("${spring.kafka.topics.actions-topic}")
     private String topic;

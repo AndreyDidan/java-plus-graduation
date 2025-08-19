@@ -48,7 +48,6 @@ public class EventSimilarityProcessor implements Runnable {
             }
 
         } catch (WakeupException ignores) {
-            // игнорируем - закрываем консьюмер и продюсер в блоке finally
         } catch (Exception e) {
             log.error("Ошибка во время обработки события похожести ", e);
         } finally {

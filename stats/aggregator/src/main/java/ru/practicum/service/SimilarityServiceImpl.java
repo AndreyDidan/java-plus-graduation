@@ -38,17 +38,14 @@ public class SimilarityServiceImpl implements SimilarityService {
 
         log.info("receivedWeight = {}, oldWeight = {}, newWeight = {}", receivedWeight, oldWeight, newWeight);
 
-        // Если вес действительно изменился
         if (oldWeight != newWeight) {
             log.info("starting update similarity");
 
-            // Обновляем сумму весов по событию
             eventSummaryWeights.put(eventId,
                     eventSummaryWeights.getOrDefault(eventId, 0.0) + (newWeight - oldWeight));
             log.info("eventSummaryWeights updated: eventId = {}, summaryWeight = {}",
                     eventId, eventSummaryWeights.get(eventId));
 
-            // Пересчитываем similarity с другими событиями, где пользователь уже взаимодействовал
             for (Long otherEvent : eventWeights.keySet()) {
                 if (!eventId.equals(otherEvent) && eventWeights.get(otherEvent).containsKey(userId)) {
                     long eventA = Math.min(eventId, otherEvent);

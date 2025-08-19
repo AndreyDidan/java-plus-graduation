@@ -1,7 +1,7 @@
-package ru.practicum.handler;
+package ru.practicum.service;
 
 import ru.practicum.ewm.stats.proto.UserActionProto;
 
-public interface UserActionHandler {
+public interface UserActionService {
     void handle(UserActionProto userActionProto);
 }

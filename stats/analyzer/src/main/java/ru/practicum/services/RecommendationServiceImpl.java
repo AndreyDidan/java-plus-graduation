@@ -22,7 +22,6 @@ import static java.util.Collections.emptyList;
 
 @Service
 @RequiredArgsConstructor
-@Slf4j
 public class RecommendationServiceImpl implements RecommendationService {
     private static final long EVENT_COUNT_PREDICTION = 5;
     private final EventSimilarityRepository eventSimilarityRepository;
@@ -51,7 +50,6 @@ public class RecommendationServiceImpl implements RecommendationService {
                 .sorted(Comparator.comparingDouble(RecommendedEvent::getScore).reversed())
                 .limit(request.getMaxResults())
                 .toList();
-        log.info("RecommendedEvents: {}", recommendedEvents);
         limitRecommendedEvents.forEach(
                 event -> event.setScore(getPrediction(event.getEventId(), request.getUserId()))
         );
@@ -78,7 +76,6 @@ public class RecommendationServiceImpl implements RecommendationService {
     @Override
     public void saveUserAction(UserActionAvro userActionAvro) {
         UserAction userAction = Mapper.mapToUserAction(userActionAvro);
-        log.info("call saveUserAction for userActionAvro: {}", userActionAvro);
         Optional<UserAction> oldUserAction = userActionRepository.findByUserIdAndEventId(userAction.getUserId(), userAction.getEventId());
         if (oldUserAction.isPresent()) {
             userAction.setId(oldUserAction.get().getId());
@@ -86,7 +83,6 @@ public class RecommendationServiceImpl implements RecommendationService {
                 userAction.setWeight(oldUserAction.get().getWeight());
             }
         }
-        log.info("new UserAction is: {}", userAction);
         userActionRepository.save(userAction);
     }
 
@@ -121,7 +117,6 @@ public class RecommendationServiceImpl implements RecommendationService {
                 .limit(limit)
                 .toList();
 
-        log.info("similar events are {}", result);
         return result;
     }
 

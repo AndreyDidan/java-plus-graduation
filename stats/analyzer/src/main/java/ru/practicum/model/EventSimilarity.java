@@ -9,8 +9,7 @@ import java.util.Objects;
 
 @Entity
 @Table(name = "event_similarity")
-@Getter
-@Setter
+@Data
 @Builder(toBuilder = true)
 @FieldDefaults(level = AccessLevel.PRIVATE)
 @AllArgsConstructor
@@ -19,13 +18,9 @@ public class EventSimilarity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     Long id;
-
     Long aeventId;
-
     Long beventId;
-
     double score;
-
     @Override
     public final boolean equals(Object o) {
         if (this == o) return true;
