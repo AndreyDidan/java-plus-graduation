@@ -20,55 +20,109 @@ import java.util.stream.Collectors;
 
 import static java.util.Collections.emptyList;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class RecommendationServiceImpl implements RecommendationService {
+
     private static final long EVENT_COUNT_PREDICTION = 5;
+
     private final EventSimilarityRepository eventSimilarityRepository;
     private final UserActionRepository userActionRepository;
 
     @Override
     public List<RecommendedEventProto> generateRecommendationsForUser(UserPredictionsRequestProto request) {
-        List<UserAction> lastUserEvents = userActionRepository.findByUserIdOrderByCreatedDescLimitedTo(
-                request.getUserId(), request.getMaxResults()
-        );
+        log.info("Start generating recommendations for user: {}, maxResults: {}",
+                request.getUserId(), request.getMaxResults());
 
-        if (lastUserEvents.isEmpty()) {
+        List<UserAction> lastUserActions = userActionRepository
+                .findByUserIdOrderByCreatedDescLimitedTo(request.getUserId(), request.getMaxResults());
+
+        if (lastUserActions.isEmpty()) {
+            log.warn("No recent actions found for user: {}", request.getUserId());
             return emptyList();
         }
 
-        List<RecommendedEvent> recommendedEvents = new ArrayList<>();
-        lastUserEvents.forEach(event -> recommendedEvents.addAll(
-                getSimilarEvents(request.getUserId(), event.getEventId(), request.getMaxResults())
-                        .stream()
-                        .sorted(Comparator.comparingDouble(EventSimilarity::getScore).reversed())
-                        .limit(request.getMaxResults())
-                        .map(similarEvent -> genRecommendedEventFrom(similarEvent, event.getEventId()))
-                        .toList()));
+        // Все события, с которыми взаимодействовал пользователь
+        Set<Long> interactedEventIds = userActionRepository.findAllByUserId(request.getUserId()).stream()
+                .map(UserAction::getEventId)
+                .collect(Collectors.toSet());
 
-        List<RecommendedEvent> limitRecommendedEvents = recommendedEvents.stream()
+        Map<Long, Double> aggregatedScores = new HashMap<>();
+
+        for (UserAction userAction : lastUserActions) {
+            List<EventSimilarity> similarEvents = eventSimilarityRepository.findAllByEvent(userAction.getEventId());
+
+            for (EventSimilarity similarity : similarEvents) {
+                Long similarEventId = getRecommendedEventId(similarity, userAction.getEventId());
+
+                // Исключаем события, с которыми уже было взаимодействие
+                if (interactedEventIds.contains(similarEventId)) {
+                    continue;
+                }
+
+                double weightedScore = similarity.getScore() * userAction.getWeight();
+
+                aggregatedScores.merge(similarEventId, weightedScore, Double::sum);
+            }
+        }
+
+        log.info("Aggregated {} recommended events before prediction", aggregatedScores.size());
+
+        // Предсказание интереса
+        Map<Long, Double> ratedEvents = userActionRepository.findAllByUserId(request.getUserId()).stream()
+                .collect(Collectors.toMap(UserAction::getEventId, UserAction::getWeight, (a, b) -> b));
+
+        List<RecommendedEvent> predictedEvents = aggregatedScores.entrySet().stream()
+                .map(entry -> {
+                    double prediction = getPrediction(entry.getKey(), ratedEvents);
+                    log.debug("Predicted score for event {}: {}", entry.getKey(), prediction);
+                    return RecommendedEvent.builder()
+                            .eventId(entry.getKey())
+                            .score(prediction)
+                            .build();
+                })
                 .sorted(Comparator.comparingDouble(RecommendedEvent::getScore).reversed())
                 .limit(request.getMaxResults())
                 .toList();
-        limitRecommendedEvents.forEach(
-                event -> event.setScore(getPrediction(event.getEventId(), request.getUserId()))
-        );
-        return limitRecommendedEvents.stream()
+
+        log.info("Returning {} recommended events", predictedEvents.size());
+
+        return predictedEvents.stream()
                 .map(Mapper::mapToRecommendedEventProto)
                 .toList();
     }
 
     @Override
     public List<RecommendedEventProto> getSimilarEvents(SimilarEventsRequestProto request) {
-        return getSimilarEvents(request.getUserId(), request.getEventId(), request.getMaxResults()).stream()
-                .map(event -> genRecommendedEventProtoFrom(event, request.getEventId()))
+        log.info("Getting similar events for eventId: {}, userId: {}", request.getEventId(), request.getUserId());
+
+        Set<Long> interactedEventIds = userActionRepository.findAllByUserId(request.getUserId()).stream()
+                .map(UserAction::getEventId)
+                .collect(Collectors.toSet());
+
+        List<EventSimilarity> similarities = eventSimilarityRepository.findAllByEvent(request.getEventId());
+
+        return similarities.stream()
+                .map(similarity -> {
+                    Long similarEventId = getRecommendedEventId(similarity, request.getEventId());
+                    return new AbstractMap.SimpleEntry<>(similarEventId, similarity.getScore());
+                })
+                .filter(entry -> !interactedEventIds.contains(entry.getKey()))
+                .sorted(Map.Entry.<Long, Double>comparingByValue().reversed())
+                .limit(request.getMaxResults())
+                .map(entry -> RecommendedEventProto.newBuilder()
+                        .setEventId(entry.getKey())
+                        .setScore(entry.getValue())
+                        .build())
                 .toList();
     }
 
     @Override
     public List<RecommendedEventProto> getInteractionsCount(InteractionsCountRequestProto request) {
-        return userActionRepository.getSumWeightForEvents(request.getEventIdList())
-                .stream()
+        log.info("Getting interactions count for eventIds: {}", request.getEventIdList());
+
+        return userActionRepository.getSumWeightForEvents(request.getEventIdList()).stream()
                 .map(Mapper::mapToRecommendedEventProto)
                 .toList();
     }
@@ -76,73 +130,44 @@ public class RecommendationServiceImpl implements RecommendationService {
     @Override
     public void saveUserAction(UserActionAvro userActionAvro) {
         UserAction userAction = Mapper.mapToUserAction(userActionAvro);
-        Optional<UserAction> oldUserAction = userActionRepository.findByUserIdAndEventId(userAction.getUserId(), userAction.getEventId());
-        if (oldUserAction.isPresent()) {
-            userAction.setId(oldUserAction.get().getId());
-            if (userAction.getWeight() < oldUserAction.get().getWeight()) {
-                userAction.setWeight(oldUserAction.get().getWeight());
+
+        Optional<UserAction> existing = userActionRepository
+                .findByUserIdAndEventId(userAction.getUserId(), userAction.getEventId());
+
+        existing.ifPresent(old -> {
+            userAction.setId(old.getId());
+            if (userAction.getWeight() < old.getWeight()) {
+                userAction.setWeight(old.getWeight());
             }
-        }
+        });
+
         userActionRepository.save(userAction);
+        log.debug("Saved user action: {}", userAction);
     }
 
-    private RecommendedEvent genRecommendedEventFrom(EventSimilarity eventSimilarity, Long eventId) {
-        Long recommendedEventId = Objects.equals(eventSimilarity.getAeventId(), eventId) ?
-                eventSimilarity.getBeventId() : eventSimilarity.getAeventId();
-
-        return RecommendedEvent.builder()
-                .eventId(recommendedEventId)
-                .score(eventSimilarity.getScore())
-                .build();
+    private Long getRecommendedEventId(EventSimilarity similarity, Long referenceEventId) {
+        return Objects.equals(similarity.getAeventId(), referenceEventId)
+                ? similarity.getBeventId()
+                : similarity.getAeventId();
     }
 
-    private RecommendedEventProto genRecommendedEventProtoFrom(EventSimilarity eventSimilarity, Long eventId) {
-        Long recommendedEventId = Objects.equals(eventSimilarity.getAeventId(), eventId) ?
-                eventSimilarity.getBeventId() : eventSimilarity.getAeventId();
-
-        return RecommendedEventProto.newBuilder()
-                .setEventId(recommendedEventId)
-                .setScore(eventSimilarity.getScore())
-                .build();
-    }
-
-    private List<EventSimilarity> getSimilarEvents(Long userId, Long eventId, Long limit) {
-        List<EventSimilarity> events = eventSimilarityRepository.findAllByEvent(eventId);
-        List<Long> actions = userActionRepository.findAllByUserId(userId).stream()
-                .map(UserAction::getEventId).toList();
-
-        List<EventSimilarity> result = events.stream()
-                .filter(event -> !(actions.contains(event.getAeventId()) && actions.contains(event.getBeventId())))
-                .sorted(Comparator.comparingDouble(EventSimilarity::getScore).reversed())
-                .limit(limit)
-                .toList();
-
-        return result;
-    }
-
-    private double getPrediction(Long eventId, Long userId) {
-        double prediction = 0.0;
-
-        Map<Long, Double> ratedEvents = userActionRepository.findAllByUserId(userId).stream()
-                .collect(Collectors.toMap(UserAction::getEventId, UserAction::getWeight));
-        List<RecommendedEvent> similarEvents = eventSimilarityRepository.findAllByEventAndEventIdInLimitedTo(
-                        eventId, ratedEvents.keySet().stream().toList(), EVENT_COUNT_PREDICTION)
-                .stream()
-                .map(eventSimilarity -> genRecommendedEventFrom(eventSimilarity, eventId))
-                .toList();
+    private double getPrediction(Long targetEventId, Map<Long, Double> ratedEvents) {
+        List<EventSimilarity> similarities = eventSimilarityRepository
+                .findAllByEventAndEventIdInLimitedTo(targetEventId, new ArrayList<>(ratedEvents.keySet()), EVENT_COUNT_PREDICTION);
 
         double weightedSum = 0.0;
         double similaritySum = 0.0;
 
-        for (RecommendedEvent event : similarEvents) {
-            weightedSum += event.getScore() * ratedEvents.get(event.getEventId());
-            similaritySum += event.getScore();
+        for (EventSimilarity similarity : similarities) {
+            Long similarEventId = getRecommendedEventId(similarity, targetEventId);
+            Double rating = ratedEvents.get(similarEventId);
+
+            if (rating != null) {
+                weightedSum += similarity.getScore() * rating;
+                similaritySum += similarity.getScore();
+            }
         }
 
-        if (similaritySum != 0) {
-            prediction = weightedSum / similaritySum;
-        }
-
-        return prediction;
+        return similaritySum == 0.0 ? 0.0 : weightedSum / similaritySum;
     }
 }

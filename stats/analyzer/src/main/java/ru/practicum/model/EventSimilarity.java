@@ -3,10 +3,6 @@ package ru.practicum.model;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
-import org.hibernate.Hibernate;
-import org.hibernate.proxy.HibernateProxy;
-
-import java.util.Objects;
 
 @Entity
 @Table(name = "event_similarity")

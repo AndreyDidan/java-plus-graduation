@@ -8,7 +8,6 @@ import org.springframework.context.annotation.Configuration;
 import ru.practicum.ewm.stats.avro.EventSimilarityAvro;
 import ru.practicum.ewm.stats.avro.UserActionAvro;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 
