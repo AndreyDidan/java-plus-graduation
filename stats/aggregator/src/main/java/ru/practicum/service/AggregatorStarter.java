@@ -10,6 +10,7 @@ import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.WakeupException;
 import org.springframework.stereotype.Component;
 import ru.practicum.configuration.KafkaConfiguration;
+import ru.practicum.configuration.KafkaTopicResolver;
 import ru.practicum.ewm.stats.avro.EventSimilarityAvro;
 import ru.practicum.ewm.stats.avro.UserActionAvro;
 
@@ -26,15 +27,16 @@ public class AggregatorStarter {
     private final Consumer<String, UserActionAvro> consumer;
     private final KafkaConfiguration kafkaConfig;
     private final Map<TopicPartition, OffsetAndMetadata> currentOffsets = new HashMap<>();
+    private final KafkaTopicResolver kafkaTopicResolver;
 
     public void start() {
         Runtime.getRuntime().addShutdownHook(new Thread(consumer::wakeup));
 
         try {
-            consumer.subscribe(List.of(kafkaConfig.getKafkaProperties().getUserActionTopic()));
+            consumer.subscribe(List.of(kafkaTopicResolver.getUserActionsTopic()));
             while (true) {
                 ConsumerRecords<String, UserActionAvro> records = consumer
-                        .poll(Duration.ofMillis(kafkaConfig.getKafkaProperties().getConsumerAttemptTimeout()));
+                        .poll(Duration.ofMillis(kafkaConfig.getKafkaProperties().getConsumer().getAttemptTimeout()));
                 int count = 0;
                 for (ConsumerRecord<String, UserActionAvro> record : records) {
                     log.info("UserActionAvro got from consumer: {}", record);

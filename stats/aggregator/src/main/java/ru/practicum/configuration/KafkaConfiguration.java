@@ -24,28 +24,35 @@ public class KafkaConfiguration {
 
     public KafkaConfiguration(KafkaProperties kafkaProperties) {
         this.kafkaProperties = kafkaProperties;
+        log.info("KafkaProperties.bootstrapServers = {}", kafkaProperties.getBootstrapServers());
+        log.info("KafkaProperties.producer = {}", kafkaProperties.getProducer());
+        log.info("KafkaProperties.consumer = {}", kafkaProperties.getConsumer());
+
     }
 
     @Bean
     public Producer<String, SpecificRecordBase> producer() {
         Properties properties = new Properties();
+        KafkaProducerProperties producerProps = kafkaProperties.getProducer();
         properties.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaProperties.getBootstrapServers());
-        properties.put(ProducerConfig.CLIENT_ID_CONFIG, kafkaProperties.getProducerClientIdConfig());
-        properties.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, kafkaProperties.getProducerKeySerializer());
-        properties.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, kafkaProperties.getProducerValueSerializer());
-        log.info("properties for producer are: {}", properties);
+        properties.put(ProducerConfig.CLIENT_ID_CONFIG, producerProps.getClientIdConfig());
+        properties.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, producerProps.getKeySerializer());
+        properties.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, producerProps.getValueSerializer());
+        log.info("Kafka Producer properties: {}", properties);
         return new KafkaProducer<>(properties);
+
     }
 
     @Bean
     public KafkaConsumer<String, UserActionAvro> consumer() {
         Properties props = new Properties();
+        KafkaConsumerProperties consumerProps = kafkaProperties.getConsumer();
         props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaProperties.getBootstrapServers());
-        props.put(ConsumerConfig.GROUP_ID_CONFIG, kafkaProperties.getConsumerGroupId());
-        props.put(ConsumerConfig.CLIENT_ID_CONFIG, kafkaProperties.getConsumerClientIdConfig());
-        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, kafkaProperties.getConsumerKeyDeserializer());
-        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, kafkaProperties.getConsumerValueDeserializer());
-        props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, kafkaProperties.getConsumerEnableAutoCommit());
+        props.put(ConsumerConfig.GROUP_ID_CONFIG, consumerProps.getGroupId());
+        props.put(ConsumerConfig.CLIENT_ID_CONFIG, consumerProps.getClientIdConfig());
+        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, consumerProps.getKeyDeserializer());
+        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, consumerProps.getValueDeserializer());
+        props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, consumerProps.getEnableAutoCommit());
         return new KafkaConsumer<>(props);
     }
 }

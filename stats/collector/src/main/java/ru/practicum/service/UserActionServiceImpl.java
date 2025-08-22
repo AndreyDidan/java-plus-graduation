@@ -11,6 +11,7 @@ import ru.practicum.ewm.stats.avro.ActionTypeAvro;
 import ru.practicum.ewm.stats.avro.UserActionAvro;
 import ru.practicum.ewm.stats.proto.ActionTypeProto;
 import ru.practicum.ewm.stats.proto.UserActionProto;
+import ru.practicum.exception.IncorrectRequestException;
 import ru.practicum.kafka.KafkaClient;
 
 import java.time.Instant;
@@ -34,8 +35,8 @@ public class UserActionServiceImpl implements UserActionService {
                 .setTimestamp(mapToInstant(userActionProto.getTimestamp()))
                 .build();
         log.info("Отправляем сообщение {} в topic {}", userActionProto, topic);
-        ProducerRecord<String, SpecificRecordBase> producerRecord = new ProducerRecord<>(topic, null,
-                userActionAvro.getTimestamp().getEpochSecond(), null, userActionAvro);
+        ProducerRecord<String, SpecificRecordBase> producerRecord = new ProducerRecord<>(
+                topic, null, userActionAvro.getTimestamp().toEpochMilli(), null, userActionAvro);
         kafkaClient.getProducer().send(producerRecord);
         log.info("Action from user ID = {} send to topic: {}", userActionProto.getUserId(), topic);
     }
@@ -56,7 +57,7 @@ public class UserActionServiceImpl implements UserActionService {
                 return ActionTypeAvro.LIKE;
             }
             default -> {
-                return null;
+                throw new IncorrectRequestException("Unknown ActionTypeProto: " + actionTypeProto);
             }
         }
     }

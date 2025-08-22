@@ -7,92 +7,92 @@ import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.springframework.stereotype.Service;
 import ru.practicum.configuration.KafkaConfiguration;
+import ru.practicum.configuration.KafkaTopicResolver;
 import ru.practicum.ewm.stats.avro.ActionTypeAvro;
 import ru.practicum.ewm.stats.avro.EventSimilarityAvro;
 import ru.practicum.ewm.stats.avro.UserActionAvro;
 
+import java.time.Instant;
 import java.util.*;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class SimilarityServiceImpl implements SimilarityService {
-    private final Producer<String, SpecificRecordBase> producer;
-    private final KafkaConfiguration kafkaConfig;
-
+    private final EventSimilarityProducer similarityProducer;
     private final Map<Long, Map<Long, Double>> eventWeights = new HashMap<>();
     private final Map<Long, Double> eventSummaryWeights = new HashMap<>();
+    private final Map<Long, Double> minSums = new HashMap<>();
 
-    @Override
-    public List<EventSimilarityAvro> updateSimilarity(UserActionAvro userAction) {
-        log.info("updateSimilarity for userAction = {}", userAction);
+    private long pairKey(long eventA, long eventB) {
+        return eventA * 1_000_000_000L + eventB;
+    }
 
-        List<EventSimilarityAvro> result = new ArrayList<>();
+    private List<EventSimilarityAvro> updateSimilarityWithUser(Long eventId, Long userId, double oldWeight, double newWeight, Instant timestamp) {
+        List<EventSimilarityAvro> similarities = new ArrayList<>();
 
-        Long eventId = userAction.getEventId();
-        Long userId = userAction.getUserId();
-        double receivedWeight = getWeightByActionType(userAction.getActionType());
+        for (Map.Entry<Long, Map<Long, Double>> entry : eventWeights.entrySet()) {
+            Long otherEventId = entry.getKey();
+            if (!shouldCompareWithUser(eventId, otherEventId, userId)) continue;
 
-        double oldWeight = addOrUpdateEventWeightForUser(eventId, userId, receivedWeight);
-        double newWeight = Math.max(oldWeight, receivedWeight);
+            long eventA = Math.min(eventId, otherEventId);
+            long eventB = Math.max(eventId, otherEventId);
+            long key = pairKey(eventA, eventB);
 
-        log.info("receivedWeight = {}, oldWeight = {}, newWeight = {}", receivedWeight, oldWeight, newWeight);
+            double score = computeUpdatedScore(eventA, eventB, key, userId, eventId, oldWeight);
+            if (score < 0) continue; // признак ошибки или пропуска
 
-        if (oldWeight != newWeight) {
-            log.info("starting update similarity");
-
-            eventSummaryWeights.put(eventId,
-                    eventSummaryWeights.getOrDefault(eventId, 0.0) + (newWeight - oldWeight));
-            log.info("eventSummaryWeights updated: eventId = {}, summaryWeight = {}",
-                    eventId, eventSummaryWeights.get(eventId));
-
-            for (Long otherEvent : eventWeights.keySet()) {
-                if (!eventId.equals(otherEvent) && eventWeights.get(otherEvent).containsKey(userId)) {
-                    long eventA = Math.min(eventId, otherEvent);
-                    long eventB = Math.max(eventId, otherEvent);
-
-                    double sumWeightA = eventSummaryWeights.getOrDefault(eventA, 0.0);
-                    double sumWeightB = eventSummaryWeights.getOrDefault(eventB, 0.0);
-
-                    if (sumWeightA > 0 && sumWeightB > 0) {
-                        double minSum = computeMinSum(eventA, eventB);
-                        double score = minSum / (Math.sqrt(sumWeightA) * Math.sqrt(sumWeightB));
-
-                        log.info("Computed similarity: A={}, B={}, minSum={}, sumA={}, sumB={}, score={}",
-                                eventA, eventB, minSum, sumWeightA, sumWeightB, score);
-
-                        EventSimilarityAvro eventSimilarity = EventSimilarityAvro.newBuilder()
-                                .setEventA(eventA)
-                                .setEventB(eventB)
-                                .setScore(score)
-                                .setTimestamp(userAction.getTimestamp())
-                                .build();
-                        result.add(eventSimilarity);
-                    }
-                }
-            }
+            similarities.add(buildSimilarity(eventA, eventB, score, timestamp));
         }
 
-        return result;
+        return similarities;
+    }
+
+    private boolean shouldCompareWithUser(Long eventId, Long otherEventId, Long userId) {
+        if (eventId.equals(otherEventId)) return false;
+
+        Map<Long, Double> otherUsers = eventWeights.get(otherEventId);
+        return otherUsers != null && otherUsers.containsKey(userId);
+    }
+
+    private double computeUpdatedScore(long eventA, long eventB, long key, Long userId, Long changedEventId, double oldWeight) {
+        // Старые веса
+        double weightA_old = eventA == changedEventId ? oldWeight : eventWeights.get(eventA).getOrDefault(userId, 0.0);
+        double weightB_old = eventB == changedEventId ? oldWeight : eventWeights.get(eventB).getOrDefault(userId, 0.0);
+        double oldMin = Math.min(weightA_old, weightB_old);
+
+        // Новые веса
+        double weightA = eventWeights.get(eventA).getOrDefault(userId, 0.0);
+        double weightB = eventWeights.get(eventB).getOrDefault(userId, 0.0);
+        double newMin = Math.min(weightA, weightB);
+
+        // Обновляем сумму минимумов
+        double delta = newMin - oldMin;
+        double updatedMinSum = minSums.getOrDefault(key, 0.0) + delta;
+        minSums.put(key, updatedMinSum);
+
+        double sumA = eventSummaryWeights.getOrDefault(eventA, 0.0);
+        double sumB = eventSummaryWeights.getOrDefault(eventB, 0.0);
+
+        if (sumA <= 0 || sumB <= 0) return -1; // ничего не делаем
+
+        return updatedMinSum / (Math.sqrt(sumA) * Math.sqrt(sumB));
+    }
+
+    private EventSimilarityAvro buildSimilarity(long eventA, long eventB, double score, Instant timestamp) {
+        log.info("Computed similarity: A={}, B={}, score={}", eventA, eventB, score);
+
+        return EventSimilarityAvro.newBuilder()
+                .setEventA(eventA)
+                .setEventB(eventB)
+                .setScore(score)
+                .setTimestamp(timestamp)
+                .build();
     }
 
     @Override
     public void collectEventSimilarity(EventSimilarityAvro eventSimilarityAvro) {
-        ProducerRecord<String, SpecificRecordBase> rec = new ProducerRecord<>(
-                kafkaConfig.getKafkaProperties().getEventsSimilarityTopic(),
-                null,
-                eventSimilarityAvro.getTimestamp().toEpochMilli(),
-                String.valueOf(eventSimilarityAvro.getEventA()),
-                eventSimilarityAvro);
-        producer.send(rec);
-    }
-
-    @Override
-    public void close() {
-        SimilarityService.super.close();
-        if (producer != null) {
-            producer.close();
-        }
+        similarityProducer.send(eventSimilarityAvro);
     }
 
     private double getWeightByActionType(ActionTypeAvro actionType) {
@@ -114,20 +114,32 @@ public class SimilarityServiceImpl implements SimilarityService {
         return oldWeight;
     }
 
-    /**
-     * Вычисляет сумму минимумов весов по всем общим пользователям между eventA и eventB.
-     */
-    private double computeMinSum(long eventA, long eventB) {
-        Map<Long, Double> weightsA = eventWeights.getOrDefault(eventA, Map.of());
-        Map<Long, Double> weightsB = eventWeights.getOrDefault(eventB, Map.of());
+    @Override
+    public List<EventSimilarityAvro> updateSimilarity(UserActionAvro userAction) {
+        log.info("updateSimilarity for userAction = {}", userAction);
 
-        double sum = 0.0;
-        for (Map.Entry<Long, Double> entry : weightsA.entrySet()) {
-            Long userId = entry.getKey();
-            if (weightsB.containsKey(userId)) {
-                sum += Math.min(entry.getValue(), weightsB.get(userId));
-            }
+        Long eventId = userAction.getEventId();
+        Long userId = userAction.getUserId();
+        double receivedWeight = getWeightByActionType(userAction.getActionType());
+
+        double oldWeight = addOrUpdateEventWeightForUser(eventId, userId, receivedWeight);
+        double newWeight = Math.max(oldWeight, receivedWeight);
+
+        if (oldWeight == newWeight) {
+            log.info("Вес не изменился, пересчёт схожести не требуется");
+            return List.of();
         }
-        return sum;
+
+        updateSummaryWeight(eventId, newWeight - oldWeight);
+        return updateSimilarityWithUser(eventId, userId, oldWeight, newWeight, userAction.getTimestamp());
     }
+
+    private void updateSummaryWeight(Long eventId, double delta) {
+        eventSummaryWeights.put(eventId,
+                eventSummaryWeights.getOrDefault(eventId, 0.0) + delta);
+        log.info("eventSummaryWeights updated: eventId = {}, delta = {}, newSummary = {}",
+                eventId, delta, eventSummaryWeights.get(eventId));
+    }
+
+
 }
