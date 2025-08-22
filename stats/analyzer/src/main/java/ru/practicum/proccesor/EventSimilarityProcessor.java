@@ -2,10 +2,7 @@ package ru.practicum.proccesor;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.kafka.clients.consumer.Consumer;
-import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.clients.consumer.ConsumerRecords;
-import org.apache.kafka.clients.consumer.OffsetAndMetadata;
+import org.apache.kafka.clients.consumer.*;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.WakeupException;
 import org.springframework.stereotype.Component;
@@ -24,20 +21,21 @@ import java.util.Map;
 @Component
 @RequiredArgsConstructor
 public class EventSimilarityProcessor implements Runnable {
-    private final Consumer<String, EventSimilarityAvro> consumer;
+
     private final KafkaConfig kafkaConfig;
-    private final Map<TopicPartition, OffsetAndMetadata> currentOffsets = new HashMap<>();
     private final EventSimilarityRepository eventSimilarityRepository;
+    private final Map<TopicPartition, OffsetAndMetadata> currentOffsets = new HashMap<>();
 
     @Override
     public void run() {
+        KafkaConsumer<String, EventSimilarityAvro> consumer = kafkaConfig.getEventSimilarityConsumer();
         Runtime.getRuntime().addShutdownHook(new Thread(consumer::wakeup));
         try {
-            consumer.subscribe(List.of(kafkaConfig.getKafkaProperties().getEventsSimilarityTopic()));
+            consumer.subscribe(List.of(kafkaConfig.getTopic(ConsumerType.EVENT_SIMILARITY)));
             while (true) {
-                ConsumerRecords<String, EventSimilarityAvro> records = consumer
-                        .poll(Duration.ofMillis(kafkaConfig.getKafkaProperties()
-                                .getEventSimilarityConsumer().getAttemptTimeout()));
+                ConsumerRecords<String, EventSimilarityAvro> records = consumer.poll(
+                        Duration.ofMillis(kafkaConfig.getAttemptTimeout(ConsumerType.EVENT_SIMILARITY)));
+
                 int count = 0;
                 for (ConsumerRecord<String, EventSimilarityAvro> record : records) {
                     handleRecord(record);
@@ -46,15 +44,12 @@ public class EventSimilarityProcessor implements Runnable {
                 }
                 consumer.commitAsync();
             }
-
-        } catch (WakeupException ignores) {
+        } catch (WakeupException ignored) {
         } catch (Exception e) {
             log.error("Ошибка во время обработки события похожести ", e);
         } finally {
-
             try {
                 consumer.commitSync(currentOffsets);
-
             } finally {
                 log.info("Закрываем консьюмер");
                 consumer.close();
@@ -62,25 +57,20 @@ public class EventSimilarityProcessor implements Runnable {
         }
     }
 
-    private void handleRecord(ConsumerRecord<String, EventSimilarityAvro> consumerRecord) throws InterruptedException {
+    private void handleRecord(ConsumerRecord<String, EventSimilarityAvro> consumerRecord) {
         log.info("handleRecord {}", consumerRecord);
         EventSimilarity eventSimilarity = Mapper.mapToEventSimilarity(consumerRecord.value());
-
         eventSimilarityRepository.findByAeventIdAndBeventId(
-                eventSimilarity.getAeventId(),
-                eventSimilarity.getBeventId()).ifPresent(oldEventSimilarity ->
-                eventSimilarity.setId(oldEventSimilarity.getId()));
+                        eventSimilarity.getAeventId(), eventSimilarity.getBeventId())
+                .ifPresent(old -> eventSimilarity.setId(old.getId()));
         eventSimilarityRepository.save(eventSimilarity);
     }
 
-    private void manageOffsets(ConsumerRecord<String, EventSimilarityAvro> consumerRecord,
-                               int count,
-                               Consumer<String, EventSimilarityAvro> consumer) {
+    private void manageOffsets(ConsumerRecord<String, EventSimilarityAvro> consumerRecord, int count, Consumer<String, EventSimilarityAvro> consumer) {
         currentOffsets.put(
                 new TopicPartition(consumerRecord.topic(), consumerRecord.partition()),
                 new OffsetAndMetadata(consumerRecord.offset() + 1)
         );
-
         if (count % 10 == 0) {
             consumer.commitAsync(currentOffsets, (offsets, exception) -> {
                 if (exception != null) {

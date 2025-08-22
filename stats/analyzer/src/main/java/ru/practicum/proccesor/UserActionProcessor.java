@@ -2,10 +2,7 @@ package ru.practicum.proccesor;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.kafka.clients.consumer.Consumer;
-import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.clients.consumer.ConsumerRecords;
-import org.apache.kafka.clients.consumer.OffsetAndMetadata;
+import org.apache.kafka.clients.consumer.*;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.WakeupException;
 import org.springframework.stereotype.Component;
@@ -22,20 +19,22 @@ import java.util.Map;
 @Component
 @RequiredArgsConstructor
 public class UserActionProcessor implements Runnable {
-    private final Consumer<String, UserActionAvro> consumer;
+
     private final KafkaConfig kafkaConfig;
-    private final Map<TopicPartition, OffsetAndMetadata> currentOffsets = new HashMap<>();
     private final RecommendationService recommendationService;
+
+    private final Map<TopicPartition, OffsetAndMetadata> currentOffsets = new HashMap<>();
 
     @Override
     public void run() {
+        KafkaConsumer<String, UserActionAvro> consumer = kafkaConfig.getUserActionConsumer();
         Runtime.getRuntime().addShutdownHook(new Thread(consumer::wakeup));
         try {
-            consumer.subscribe(List.of(kafkaConfig.getKafkaProperties().getUserActionTopic()));
+            consumer.subscribe(List.of(kafkaConfig.getTopic(ConsumerType.USER_ACTION)));
             while (true) {
-                ConsumerRecords<String, UserActionAvro> records = consumer
-                        .poll(Duration.ofMillis(kafkaConfig.getKafkaProperties()
-                                .getUserActionConsumer().getAttemptTimeout()));
+                ConsumerRecords<String, UserActionAvro> records = consumer.poll(
+                        Duration.ofMillis(kafkaConfig.getAttemptTimeout(ConsumerType.USER_ACTION)));
+
                 int count = 0;
                 for (ConsumerRecord<String, UserActionAvro> record : records) {
                     handleRecord(record);
@@ -44,15 +43,12 @@ public class UserActionProcessor implements Runnable {
                 }
                 consumer.commitAsync();
             }
-
-        } catch (WakeupException ignores) {
+        } catch (WakeupException ignored) {
         } catch (Exception e) {
             log.error("Ошибка во время обработки события хаба ", e);
         } finally {
-
             try {
                 consumer.commitSync(currentOffsets);
-
             } finally {
                 log.info("Закрываем консьюмер");
                 consumer.close();
@@ -60,19 +56,16 @@ public class UserActionProcessor implements Runnable {
         }
     }
 
-    private void handleRecord(ConsumerRecord<String, UserActionAvro> consumerRecord) throws InterruptedException {
+    private void handleRecord(ConsumerRecord<String, UserActionAvro> consumerRecord) {
         log.info("handleRecord {}", consumerRecord);
         recommendationService.saveUserAction(consumerRecord.value());
     }
 
-    private void manageOffsets(ConsumerRecord<String, UserActionAvro> consumerRecord,
-                               int count,
-                               Consumer<String, UserActionAvro> consumer) {
+    private void manageOffsets(ConsumerRecord<String, UserActionAvro> consumerRecord, int count, Consumer<String, UserActionAvro> consumer) {
         currentOffsets.put(
                 new TopicPartition(consumerRecord.topic(), consumerRecord.partition()),
                 new OffsetAndMetadata(consumerRecord.offset() + 1)
         );
-
         if (count % 10 == 0) {
             consumer.commitAsync(currentOffsets, (offsets, exception) -> {
                 if (exception != null) {
