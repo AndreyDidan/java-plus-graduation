@@ -32,22 +32,15 @@ public class UserAction {
     double weight;
 
     @Override
-    public final boolean equals(Object o) {
+    public boolean equals(Object o) {
         if (this == o) return true;
-        if (o == null) return false;
-        Class<?> oEffectiveClass = o instanceof HibernateProxy ?
-                ((HibernateProxy) o).getHibernateLazyInitializer().getPersistentClass() : o.getClass();
-        Class<?> thisEffectiveClass = this instanceof HibernateProxy ?
-                ((HibernateProxy) this).getHibernateLazyInitializer().getPersistentClass() : this.getClass();
-        if (thisEffectiveClass != oEffectiveClass) return false;
-        UserAction userAction = (UserAction) o;
-        return getId() != null && Objects.equals(getId(), userAction.getId());
+        if (o == null || getClass() != o.getClass()) return false;
+        UserAction that = (UserAction) o;
+        return id != null && id.equals(that.id);
     }
 
     @Override
-    public final int hashCode() {
-        return this instanceof HibernateProxy
-                ? ((HibernateProxy) this).getHibernateLazyInitializer().getPersistentClass().hashCode()
-                : getClass().hashCode();
+    public int hashCode() {
+        return id != null ? id.hashCode() : 0;
     }
 }

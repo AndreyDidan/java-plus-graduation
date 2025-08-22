@@ -3,6 +3,7 @@ package ru.practicum.model;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
+import org.hibernate.Hibernate;
 import org.hibernate.proxy.HibernateProxy;
 
 import java.util.Objects;
@@ -21,23 +22,17 @@ public class EventSimilarity {
     Long aeventId;
     Long beventId;
     double score;
+
     @Override
-    public final boolean equals(Object o) {
+    public boolean equals(Object o) {
         if (this == o) return true;
-        if (o == null) return false;
-        Class<?> oEffectiveClass = o instanceof HibernateProxy ?
-                ((HibernateProxy) o).getHibernateLazyInitializer().getPersistentClass() : o.getClass();
-        Class<?> thisEffectiveClass = this instanceof HibernateProxy ?
-                ((HibernateProxy) this).getHibernateLazyInitializer().getPersistentClass() : this.getClass();
-        if (thisEffectiveClass != oEffectiveClass) return false;
-        EventSimilarity eventSimilarity = (EventSimilarity) o;
-        return getId() != null && Objects.equals(getId(), eventSimilarity.getId());
+        if (o == null || getClass() != o.getClass()) return false;
+        EventSimilarity that = (EventSimilarity) o;
+        return id != null && id.equals(that.id);
     }
 
     @Override
-    public final int hashCode() {
-        return this instanceof HibernateProxy
-                ? ((HibernateProxy) this).getHibernateLazyInitializer().getPersistentClass().hashCode()
-                : getClass().hashCode();
+    public int hashCode() {
+        return id != null ? id.hashCode() : 0;
     }
 }
