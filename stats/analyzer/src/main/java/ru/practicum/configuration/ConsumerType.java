@@ -1,4 +1,4 @@
-package ru.practicum.proccesor;
+package ru.practicum.configuration;
 
 public enum ConsumerType {
     USER_ACTION("userAction"),

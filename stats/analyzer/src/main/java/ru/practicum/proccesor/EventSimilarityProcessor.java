@@ -6,6 +6,7 @@ import org.apache.kafka.clients.consumer.*;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.WakeupException;
 import org.springframework.stereotype.Component;
+import ru.practicum.configuration.ConsumerType;
 import ru.practicum.configuration.KafkaConfig;
 import ru.practicum.ewm.stats.avro.EventSimilarityAvro;
 import ru.practicum.mapper.Mapper;
@@ -28,14 +29,14 @@ public class EventSimilarityProcessor implements Runnable {
 
     @Override
     public void run() {
-        KafkaConsumer<String, EventSimilarityAvro> consumer = kafkaConfig.getEventSimilarityConsumer();
+        KafkaConsumer<String, EventSimilarityAvro> consumer = kafkaConfig
+                .createConsumer(ConsumerType.EVENT_SIMILARITY.getKey());
         Runtime.getRuntime().addShutdownHook(new Thread(consumer::wakeup));
         try {
             consumer.subscribe(List.of(kafkaConfig.getTopic(ConsumerType.EVENT_SIMILARITY)));
             while (true) {
-                ConsumerRecords<String, EventSimilarityAvro> records = consumer.poll(
-                        Duration.ofMillis(kafkaConfig.getAttemptTimeout(ConsumerType.EVENT_SIMILARITY)));
-
+                ConsumerRecords<String, EventSimilarityAvro> records = consumer
+                        .poll(Duration.ofMillis(kafkaConfig.getAttemptTimeout(ConsumerType.EVENT_SIMILARITY)));
                 int count = 0;
                 for (ConsumerRecord<String, EventSimilarityAvro> record : records) {
                     handleRecord(record);

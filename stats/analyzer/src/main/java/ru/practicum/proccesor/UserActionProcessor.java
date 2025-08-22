@@ -6,6 +6,7 @@ import org.apache.kafka.clients.consumer.*;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.WakeupException;
 import org.springframework.stereotype.Component;
+import ru.practicum.configuration.ConsumerType;
 import ru.practicum.configuration.KafkaConfig;
 import ru.practicum.ewm.stats.avro.UserActionAvro;
 import ru.practicum.services.RecommendationService;
@@ -27,14 +28,13 @@ public class UserActionProcessor implements Runnable {
 
     @Override
     public void run() {
-        KafkaConsumer<String, UserActionAvro> consumer = kafkaConfig.getUserActionConsumer();
+        KafkaConsumer<String, UserActionAvro> consumer = kafkaConfig.createConsumer(ConsumerType.USER_ACTION.getKey());
         Runtime.getRuntime().addShutdownHook(new Thread(consumer::wakeup));
         try {
             consumer.subscribe(List.of(kafkaConfig.getTopic(ConsumerType.USER_ACTION)));
             while (true) {
-                ConsumerRecords<String, UserActionAvro> records = consumer.poll(
-                        Duration.ofMillis(kafkaConfig.getAttemptTimeout(ConsumerType.USER_ACTION)));
-
+                ConsumerRecords<String, UserActionAvro> records = consumer
+                        .poll(Duration.ofMillis(kafkaConfig.getAttemptTimeout(ConsumerType.USER_ACTION)));
                 int count = 0;
                 for (ConsumerRecord<String, UserActionAvro> record : records) {
                     handleRecord(record);
