@@ -60,8 +60,4 @@ public class EventRequestController {
         log.info("Отправлен ответ PATCH /users/{}/events/{}/requests с телом: {}", userId, eventId, result);
         return result;
     }
-
-    public boolean isUserParticipatedInEvent(long userId, long eventId) {
-        return eventRequestService.isUserParticipatedInEvent(userId, eventId);
-    }
 }
