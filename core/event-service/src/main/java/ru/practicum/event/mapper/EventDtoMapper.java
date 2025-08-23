@@ -16,12 +16,10 @@ public interface EventDtoMapper {
     @Mapping(target = "createdOn", source = "createdOn", dateFormat = "yyyy-MM-dd HH:mm:ss")
     @Mapping(target = "publishedOn", source = "publishedOn", dateFormat = "yyyy-MM-dd HH:mm:ss", ignore = true)
     @Mapping(target = "initiator", expression = "java(event.getInitiatorId())")
-    @Mapping(source = "rating", target = "rating")
     EventFullDto mapToFullDto(Event event);
 
     @Mapping(target = "eventDate", source = "eventDate", dateFormat = "yyyy-MM-dd HH:mm:ss")
     @Mapping(target = "initiator", expression = "java(event.getInitiatorId())")
-    @Mapping(source = "rating", target = "rating")
     EventShortDto mapToShortDto(Event event);
 
     @Mapping(target = "id", ignore = true)
@@ -32,7 +30,6 @@ public interface EventDtoMapper {
     @Mapping(target = "eventDate", source = "eventDate", dateFormat = "yyyy-MM-dd HH:mm:ss")
     @Mapping(target = "createdOn", expression = "java(java.time.LocalDateTime.now())")
     @Mapping(target = "publishedOn", ignore = true)
-    @Mapping(target = "rating", constant = "0.0")
     Event mapFromDto(NewEventDto newEventDto);
 
     @Mapping(target = "eventDate", source = "eventDate", dateFormat = "yyyy-MM-dd HH:mm:ss")

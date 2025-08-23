@@ -20,4 +20,3 @@ public interface EventRequestService {
 
     boolean isUserParticipatedInEvent(long userId, long eventId);
 }
-

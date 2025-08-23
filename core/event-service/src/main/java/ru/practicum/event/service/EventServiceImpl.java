@@ -212,6 +212,10 @@ public class EventServiceImpl implements EventService {
     public EventFullDto getEventById(Long eventId) {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new NotFoundException("События с id = " + eventId + " нет в базе данных"));
+
+        Map<Long, Double> ratings = getRatings(List.of(eventId));
+        event.setRating(ratings.getOrDefault(eventId, 0.0));
+
         return eventDtoMapper.mapToFullDto(event);
     }
 
