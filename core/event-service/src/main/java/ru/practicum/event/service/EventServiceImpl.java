@@ -85,17 +85,23 @@ public class EventServiceImpl implements EventService {
 
         Map<Long, Double> ratings = getRatings(events.stream().map(Event::getId).toList());
 
-        return events.stream()
-                .peek(event -> event.setRating(ratings.getOrDefault(event.getId(), 0.0)))
-                .map(eventDtoMapper::mapToShortDto)
-                .sorted((e1, e2) -> {
-                    if (sort == null || sort.equals("EVENT_DATE")) {
-                        return e1.getEventDate().compareTo(e2.getEventDate());
-                    } else {
-                        return Double.compare(e2.getRating(), e1.getRating());
-                    }
+        List<EventShortDto> dtos = events.stream()
+                .map(event -> {
+                    EventShortDto dto = eventDtoMapper.mapToShortDto(event);
+                    dto.setRating(ratings.getOrDefault(event.getId(), 0.0));
+                    return dto;
                 })
                 .collect(Collectors.toList());
+
+        dtos.sort((e1, e2) -> {
+            if (sort == null || sort.equals("EVENT_DATE")) {
+                return e1.getEventDate().compareTo(e2.getEventDate());
+            } else {
+                return Double.compare(e2.getRating(), e1.getRating());
+            }
+        });
+
+        return dtos;
     }
 
     @Override
@@ -103,8 +109,11 @@ public class EventServiceImpl implements EventService {
         final Collection<Event> events = eventRepository.findAllByInitiatorId(userId, PageRequest.of(from, size));
         Map<Long, Double> ratings = getRatings(events.stream().map(Event::getId).toList());
         return events.stream()
-                .peek(event -> event.setRating(ratings.getOrDefault(event.getId(), 0.0)))
-                .map(eventDtoMapper::mapToShortDto)
+                .map(event -> {
+                    EventShortDto dto = eventDtoMapper.mapToShortDto(event);
+                    dto.setRating(ratings.getOrDefault(event.getId(), 0.0));
+                    return dto;
+                })
                 .collect(Collectors.toList());
     }
 
@@ -118,8 +127,11 @@ public class EventServiceImpl implements EventService {
         Map<Long, Double> ratings = getRatings(events.stream().map(Event::getId).toList());
 
         return events.stream()
-                .peek(event -> event.setRating(ratings.getOrDefault(event.getId(), 0.0)))
-                .map(eventDtoMapper::mapToFullDto)
+                .map(event -> {
+                    EventFullDto dto = eventDtoMapper.mapToFullDto(event);
+                    dto.setRating(ratings.getOrDefault(event.getId(), 0.0));
+                    return dto;
+                })
                 .collect(Collectors.toList());
     }
 
@@ -214,9 +226,9 @@ public class EventServiceImpl implements EventService {
                 .orElseThrow(() -> new NotFoundException("События с id = " + eventId + " нет в базе данных"));
 
         Map<Long, Double> ratings = getRatings(List.of(eventId));
-        event.setRating(ratings.getOrDefault(eventId, 0.0));
-
-        return eventDtoMapper.mapToFullDto(event);
+        EventFullDto dto = eventDtoMapper.mapToFullDto(event);
+        dto.setRating(ratings.getOrDefault(eventId, 0.0));
+        return dto;
     }
 
     private void validateUser(Long userId, Long initiatorId) {
@@ -315,8 +327,9 @@ public class EventServiceImpl implements EventService {
                 .map(proto -> {
                     Event event = eventsMap.get(proto.getEventId());
                     if (event == null) return null;
-                    event.setRating(proto.getScore());
-                    return eventDtoMapper.mapToShortDto(event);
+                    EventShortDto dto = eventDtoMapper.mapToShortDto(event);
+                    dto.setRating(proto.getScore());
+                    return dto;
                 })
                 .filter(Objects::nonNull)
                 .collect(Collectors.toList());
@@ -338,8 +351,9 @@ public class EventServiceImpl implements EventService {
                 .map(proto -> {
                     Event event = eventsMap.get(proto.getEventId());
                     if (event == null) return null;
-                    event.setRating(proto.getScore());
-                    return eventDtoMapper.mapToShortDto(event);
+                    EventShortDto dto = eventDtoMapper.mapToShortDto(event);
+                    dto.setRating(proto.getScore());
+                    return dto;
                 })
                 .filter(Objects::nonNull)
                 .collect(Collectors.toList());

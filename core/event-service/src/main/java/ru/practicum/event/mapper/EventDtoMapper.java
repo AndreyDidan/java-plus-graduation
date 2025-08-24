@@ -46,7 +46,6 @@ public interface EventDtoMapper {
     @Mapping(target = "eventDate", source = "eventDate", dateFormat = "yyyy-MM-dd HH:mm:ss")
     @Mapping(target = "createdOn", ignore = true)
     @Mapping(target = "publishedOn", ignore = true)
-    @Mapping(target = "rating", ignore = true)
     void updateFromDto(@MappingTarget Event event, UpdateEventUserRequest eventDto);
 
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
@@ -58,6 +57,5 @@ public interface EventDtoMapper {
     @Mapping(target = "eventDate", source = "eventDate", dateFormat = "yyyy-MM-dd HH:mm:ss")
     @Mapping(target = "createdOn", ignore = true)
     @Mapping(target = "publishedOn", ignore = true)
-    @Mapping(target = "rating", ignore = true)
     void updateFromDto(@MappingTarget Event event, UpdateEventAdminRequest eventDto);
 }
