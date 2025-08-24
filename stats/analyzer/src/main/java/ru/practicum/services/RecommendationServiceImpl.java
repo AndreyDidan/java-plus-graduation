@@ -80,7 +80,7 @@ public class RecommendationServiceImpl implements RecommendationService {
         List<RecommendedEvent> predictedEvents = aggregatedScores.entrySet().stream()
                 .map(entry -> RecommendedEvent.builder()
                         .eventId(entry.getKey())
-                        .score(getPrediction(entry.getKey(), ratedEvents))
+                        .score(entry.getValue())
                         .build())
                 .sorted(Comparator.comparingDouble(RecommendedEvent::getScore).reversed())
                 .limit(request.getMaxResults())
