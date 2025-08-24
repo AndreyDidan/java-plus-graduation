@@ -6,6 +6,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import ru.practicum.model.EventSimilarity;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -26,4 +27,7 @@ public interface EventSimilarityRepository extends JpaRepository<EventSimilarity
             @Param("id") Long eventId,
             @Param("ids") List<Long> eventIds,
             @Param("limit") Long limit);
+
+    @Query("SELECT es FROM EventSimilarity es WHERE es.aeventId IN :eventIds OR es.beventId IN :eventIds")
+    List<EventSimilarity> findAllByEventIn(@Param("eventIds") Collection<Long> eventIds);
 }
