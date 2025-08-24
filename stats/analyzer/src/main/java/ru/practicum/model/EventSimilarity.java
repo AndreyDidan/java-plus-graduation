@@ -18,17 +18,4 @@ public class EventSimilarity {
     Long aeventId;
     Long beventId;
     double score;
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        EventSimilarity that = (EventSimilarity) o;
-        return id != null && id.equals(that.id);
-    }
-
-    @Override
-    public int hashCode() {
-        return id != null ? id.hashCode() : 0;
-    }
 }
