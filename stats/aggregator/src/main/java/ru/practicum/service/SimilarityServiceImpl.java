@@ -2,12 +2,7 @@ package ru.practicum.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.avro.specific.SpecificRecordBase;
-import org.apache.kafka.clients.producer.Producer;
-import org.apache.kafka.clients.producer.ProducerRecord;
 import org.springframework.stereotype.Service;
-import ru.practicum.configuration.KafkaConfiguration;
-import ru.practicum.configuration.KafkaTopicResolver;
 import ru.practicum.ewm.stats.avro.ActionTypeAvro;
 import ru.practicum.ewm.stats.avro.EventSimilarityAvro;
 import ru.practicum.ewm.stats.avro.UserActionAvro;
@@ -23,6 +18,7 @@ public class SimilarityServiceImpl implements SimilarityService {
     private final Map<Long, Map<Long, Double>> eventWeights = new HashMap<>();
     private final Map<Long, Double> eventSummaryWeights = new HashMap<>();
     private final Map<Long, Double> minSums = new HashMap<>();
+    private final Map<Long, Set<Long>> userEventMap = new HashMap<>();
 
     private long pairKey(long eventA, long eventB) {
         return eventA * 1_000_000_000L + eventB;
@@ -31,9 +27,10 @@ public class SimilarityServiceImpl implements SimilarityService {
     private List<EventSimilarityAvro> updateSimilarityWithUser(Long eventId, Long userId, double oldWeight, double newWeight, Instant timestamp) {
         List<EventSimilarityAvro> similarities = new ArrayList<>();
 
-        for (Map.Entry<Long, Map<Long, Double>> entry : eventWeights.entrySet()) {
-            Long otherEventId = entry.getKey();
-            if (!shouldCompareWithUser(eventId, otherEventId, userId)) continue;
+        Set<Long> userEvents = userEventMap.getOrDefault(userId, Set.of());
+
+        for (Long otherEventId : userEvents) {
+            if (eventId.equals(otherEventId)) continue;
 
             long eventA = Math.min(eventId, otherEventId);
             long eventB = Math.max(eventId, otherEventId);
@@ -140,6 +137,4 @@ public class SimilarityServiceImpl implements SimilarityService {
         log.info("eventSummaryWeights updated: eventId = {}, delta = {}, newSummary = {}",
                 eventId, delta, eventSummaryWeights.get(eventId));
     }
-
-
 }
