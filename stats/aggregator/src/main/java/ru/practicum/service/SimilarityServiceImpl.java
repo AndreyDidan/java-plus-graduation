@@ -2,13 +2,19 @@ package ru.practicum.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.avro.specific.SpecificRecordBase;
+import org.apache.kafka.clients.producer.Producer;
+import org.apache.kafka.clients.producer.ProducerRecord;
 import org.springframework.stereotype.Service;
+import ru.practicum.configuration.KafkaConfiguration;
+import ru.practicum.configuration.KafkaTopicResolver;
 import ru.practicum.ewm.stats.avro.ActionTypeAvro;
 import ru.practicum.ewm.stats.avro.EventSimilarityAvro;
 import ru.practicum.ewm.stats.avro.UserActionAvro;
 
 import java.time.Instant;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -18,7 +24,6 @@ public class SimilarityServiceImpl implements SimilarityService {
     private final Map<Long, Map<Long, Double>> eventWeights = new HashMap<>();
     private final Map<Long, Double> eventSummaryWeights = new HashMap<>();
     private final Map<Long, Double> minSums = new HashMap<>();
-    private final Map<Long, Set<Long>> userEventMap = new HashMap<>();
 
     private long pairKey(long eventA, long eventB) {
         return eventA * 1_000_000_000L + eventB;
@@ -27,10 +32,14 @@ public class SimilarityServiceImpl implements SimilarityService {
     private List<EventSimilarityAvro> updateSimilarityWithUser(Long eventId, Long userId, double oldWeight, double newWeight, Instant timestamp) {
         List<EventSimilarityAvro> similarities = new ArrayList<>();
 
-        Set<Long> userEvents = userEventMap.getOrDefault(userId, Set.of());
+        Set<Long> userEventIds = eventWeights.entrySet().stream()
+                .filter(entry -> entry.getValue().containsKey(userId))
+                .map(Map.Entry::getKey)
+                .filter(id -> !id.equals(eventId)) // исключаем текущее событие
+                .collect(Collectors.toSet());
 
-        for (Long otherEventId : userEvents) {
-            if (eventId.equals(otherEventId)) continue;
+        for (Long otherEventId : userEventIds) {
+            if (!shouldCompareWithUser(eventId, otherEventId, userId)) continue;
 
             long eventA = Math.min(eventId, otherEventId);
             long eventB = Math.max(eventId, otherEventId);
@@ -137,4 +146,6 @@ public class SimilarityServiceImpl implements SimilarityService {
         log.info("eventSummaryWeights updated: eventId = {}, delta = {}, newSummary = {}",
                 eventId, delta, eventSummaryWeights.get(eventId));
     }
+
+
 }
