@@ -15,11 +15,11 @@ public interface EventDtoMapper {
     @Mapping(target = "eventDate", source = "eventDate", dateFormat = "yyyy-MM-dd HH:mm:ss")
     @Mapping(target = "createdOn", source = "createdOn", dateFormat = "yyyy-MM-dd HH:mm:ss")
     @Mapping(target = "publishedOn", source = "publishedOn", dateFormat = "yyyy-MM-dd HH:mm:ss", ignore = true)
-    @Mapping(target = "initiator", source = "initiatorId")
+    @Mapping(target = "initiator", expression = "java(event.getInitiatorId())")
     EventFullDto mapToFullDto(Event event);
 
     @Mapping(target = "eventDate", source = "eventDate", dateFormat = "yyyy-MM-dd HH:mm:ss")
-    @Mapping(target = "initiator", source = "initiatorId")
+    @Mapping(target = "initiator", expression = "java(event.getInitiatorId())")
     EventShortDto mapToShortDto(Event event);
 
     @Mapping(target = "id", ignore = true)
@@ -30,7 +30,6 @@ public interface EventDtoMapper {
     @Mapping(target = "eventDate", source = "eventDate", dateFormat = "yyyy-MM-dd HH:mm:ss")
     @Mapping(target = "createdOn", expression = "java(java.time.LocalDateTime.now())")
     @Mapping(target = "publishedOn", ignore = true)
-    @Mapping(target = "views", expression = "java(0L)")
     Event mapFromDto(NewEventDto newEventDto);
 
     @Mapping(target = "eventDate", source = "eventDate", dateFormat = "yyyy-MM-dd HH:mm:ss")
@@ -47,7 +46,6 @@ public interface EventDtoMapper {
     @Mapping(target = "eventDate", source = "eventDate", dateFormat = "yyyy-MM-dd HH:mm:ss")
     @Mapping(target = "createdOn", ignore = true)
     @Mapping(target = "publishedOn", ignore = true)
-    @Mapping(target = "views", ignore = true)
     void updateFromDto(@MappingTarget Event event, UpdateEventUserRequest eventDto);
 
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
@@ -59,6 +57,5 @@ public interface EventDtoMapper {
     @Mapping(target = "eventDate", source = "eventDate", dateFormat = "yyyy-MM-dd HH:mm:ss")
     @Mapping(target = "createdOn", ignore = true)
     @Mapping(target = "publishedOn", ignore = true)
-    @Mapping(target = "views", ignore = true)
     void updateFromDto(@MappingTarget Event event, UpdateEventAdminRequest eventDto);
 }

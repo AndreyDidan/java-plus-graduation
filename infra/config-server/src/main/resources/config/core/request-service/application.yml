@@ -22,3 +22,10 @@ stats:
   service:
     enabled: true
     name: stats-service
+grpc:
+  client:
+    collector:
+      address: 'discovery:///collector'
+      enableKeepAlive: true
+      keepAliveWithoutCalls: true
+      negotiationType: plaintext

@@ -117,6 +117,11 @@ public class EventRequestServiceImpl implements EventRequestService {
                 .collect(Collectors.toCollection(ArrayList::new));
     }
 
+    @Override
+    public boolean isUserParticipatedInEvent(long userId, long eventId) {
+        return eventRequestRepository.existsByRequesterIdAndEventId(userId, eventId);
+    }
+
     private void validateEventForRequest(EventFullDto event) {
         if (!event.getState().equals(State.PUBLISHED)) {
             throw new ConflictException("Can't send request to unpublished event");

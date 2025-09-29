@@ -1,0 +1,21 @@
+spring:
+  main:
+    web-application-type: none
+  application:
+    name: collector
+  kafka:
+    producer:
+      kafka_server: localhost:9092
+      key_serializer: org.apache.kafka.common.serialization.StringSerializer
+      value.serializer: ru.practicum.kafka.serializer.GeneralAvroSerializer
+    topics:
+      actions-topic: stats.user-actions.v1
+grpc:
+  server:
+    port: 0
+  client:
+    collector:
+      address: 'discovery:///collector'
+      enableKeepAlive: true
+      keepAliveWithoutCalls: true
+      negotiationType: plaintext

@@ -20,4 +20,6 @@ public interface EventRequestRepository extends JpaRepository<EventRequest, Long
         WHERE id IN ?1
     """)
     Collection<EventRequest> findById(Collection<Long> requestsIds);
+
+    boolean existsByRequesterIdAndEventId(long userId, long eventId);
 }
